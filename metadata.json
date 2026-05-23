@@ -1,0 +1,6 @@
+{
+  "name": "Lelami Afghan Marketplace",
+  "description": "Premium, production-ready frontend for lelami.af. Featuring glassmorphism bottom navigation, localized image system, RTL multilingual translations (English, Dari, Pashto), deep WhatsApp integration, and interactive chat simulation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
