@@ -69,6 +69,7 @@ export interface Listing {
   handDrive?: 'left' | 'right' | 'ashtari' | '';
   carpetStyle?: 'turkmen' | 'herati' | 'mazar' | 'other' | '';
   specs?: { [key: string]: string };
+  isSold?: boolean;
 }
 
 export interface Job {

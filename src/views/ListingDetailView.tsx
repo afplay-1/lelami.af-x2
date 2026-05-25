@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Share2, Heart, ShieldAlert, Eye, MapPin, Clock, Award, ChevronRight } from 'lucide-react';
-import { Listing } from '../types';
+import { ChevronLeft, Share2, Heart, ShieldAlert, Eye, MapPin, Clock, Award, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Listing, User } from '../types';
 import { CATEGORIES } from '../data/categories';
 import ImageCarousel from '../components/ImageCarousel';
 import WhatsAppButton from '../components/WhatsAppButton';
@@ -23,6 +23,8 @@ interface ListingDetailViewProps {
     listingPrice: string,
     listingImage: string
   ) => void;
+  currentUser: User | null;
+  onUpdateListing: (listing: Listing) => void;
 }
 
 export default function ListingDetailView({
@@ -35,6 +37,8 @@ export default function ListingDetailView({
   relatedListings,
   translations,
   onStartChat,
+  currentUser,
+  onUpdateListing,
 }: ListingDetailViewProps) {
   const [showShareNotification, setShowShareNotification] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -138,10 +142,17 @@ export default function ListingDetailView({
             </span>
           </div>
 
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-2xl font-black text-blue-600 tracking-tight">
-              {formattedPrice}
-            </span>
+          <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-black text-blue-600 tracking-tight">
+                {formattedPrice}
+              </span>
+              {listing.isSold && (
+                <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-600 text-white font-black text-[10px] tracking-wide uppercase animate-pulse">
+                  {lang === 'en' ? 'SOLD' : lang === 'da' ? 'فروخته شد' : 'پلورل شوی'}
+                </span>
+              )}
+            </div>
 
             {listing.condition && (
               <span className="inline-block px-2.5 py-0.5 rounded-full bg-zinc-100 border border-zinc-200 text-xs font-bold text-zinc-650 capitalize">
@@ -160,6 +171,23 @@ export default function ListingDetailView({
             )}
           </div>
         </div>
+
+        {/* Mark as Sold dynamic action for listing owners */}
+        {currentUser && currentUser.id === listing.seller.id && !listing.isSold && (
+          <button
+            onClick={() => onUpdateListing({ ...listing, isSold: true })}
+            className="w-full py-3.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-97 text-center text-xs font-black text-white tracking-wide transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+          >
+            <CheckCircle2 className="w-4 h-4 text-white" />
+            <span>
+              {lang === 'en'
+                ? 'Mark as Sold'
+                : lang === 'da'
+                  ? 'ثبت به عنوان فروخته‌شده'
+                  : 'د پلورل شوي په توګه ثبتول'}
+            </span>
+          </button>
+        )}
 
         {/* Unified Specifications if they exist */}
         {(() => {
@@ -256,23 +284,59 @@ export default function ListingDetailView({
         </div>
 
         {/* WhatsApp + Direct telephone contacts module */}
-        <div className="mt-2.5">
-          <WhatsAppButton
-            phoneNumber={listing.seller.phone}
-            sellerName={listing.seller.name}
-            listingTitle={listing.title}
-            listingPrice={formattedPrice}
-            lang={lang}
-            onMessageClick={() => {
-              onStartChat(
-                listing.seller.name,
-                listing.seller.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150',
-                listing.title,
-                formattedPrice,
-                listing.images[0] || 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=150'
+        {!listing.isSold ? (
+          <div className="mt-2.5">
+            <WhatsAppButton
+              phoneNumber={listing.seller.phone}
+              sellerName={listing.seller.name}
+              listingTitle={listing.title}
+              listingPrice={formattedPrice}
+              lang={lang}
+              onMessageClick={() => {
+                onStartChat(
+                  listing.seller.name,
+                  listing.seller.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150',
+                  listing.title,
+                  formattedPrice,
+                  listing.images[0] || 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?q=80&w=150'
+                );
+              }}
+            />
+          </div>
+        ) : (
+          <div className="mt-2.5 p-4 rounded-[24px] bg-red-100/30 border border-red-200 text-center font-bold text-xs text-red-650 animate-fade-in">
+            {lang === 'en'
+              ? 'This listing has been marked as sold, and active communication portals have been secured.'
+              : lang === 'da'
+                ? 'این آگهی به عنوان فروخته‌شده ثبت شده و راه‌های ارتباطی غیرفعال گردیده‌اند.'
+                : 'دا اعلان د پلورل شوي په توګه ثبت شوی او د اړیکو چارې بندې شوي دي.'}
+          </div>
+        )}
+
+        {/* Dynamic Multi-Option Share Row */}
+        <div className="flex gap-2.5 mt-0.5 animate-fade-in select-none">
+          <button
+            onClick={handleShare}
+            className="flex-grow py-3 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 active:scale-97 text-center text-xs font-black text-zinc-700 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+          >
+            <Share2 className="w-4 h-4 text-zinc-500" />
+            <span>{translations.shareListing || 'Share Ad / Copy Link'}</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              const text = encodeURIComponent(
+                `Check out this ad on Lelami:\n\n${listing.title}\nPrice: ${formattedPrice}\n\nLink: https://lelami.af/listing/${listing.id}`
               );
+              window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
             }}
-          />
+            className="flex-grow py-3 px-4 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100/50 active:scale-97 text-center text-xs font-black text-emerald-800 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-emerald-600 flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12.031 2c-5.524 0-10 4.476-10 10 0 1.83.493 3.543 1.348 5.02L2 22l5.127-1.348C8.57 21.43 10.237 21.9 12.031 21.9c5.524 0 10.002-4.476 10.002-10s-4.478-10-10.002-10zm5.176 13.914c-.255.722-1.282 1.321-2.072 1.488-.532.112-1.23.2-3.565-.77-2.983-1.242-4.912-4.282-5.06-4.482-.148-.2-1.208-1.611-1.208-3.073 0-1.463.766-2.183 1.042-2.484.275-.3.601-.375.801-.375.2 0 .4 0 .576.008.183.008.433-.033.682.567.258.625.883 2.15.958 2.3.076.15.126.325.025.525-.1.2-.15.3-.3.475-.15.175-.316.391-.45.525-.15.15-.308.316-.133.616.175.3.776 1.282 1.666 2.072.1.092.192.175.283.25.759.633 1.434.833 1.834.992.3.117.584.058.742-.092c.117-.112.442-.425.567-.575.125-.15.258-.125.433-.058.175.066 1.1.517 1.292.617.192.1.317.15.367.234.05.084.05.492-.205 1.217z"/>
+            </svg>
+            <span>{lang === 'en' ? 'Share on WhatsApp' : lang === 'da' ? 'ارسال به واتساپ' : 'واټساپ ته لېږل'}</span>
+          </button>
         </div>
 
         {/* Seller Info Container */}

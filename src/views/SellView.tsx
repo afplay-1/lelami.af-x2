@@ -3,6 +3,7 @@ import { Camera, CheckCircle2, MapPin, Grid, ShieldAlert, Home, Plus, X, ArrowRi
 import { Listing, Province, CategoryID, User } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { compressImage } from '../lib/imageCompressor';
+import { uploadListingImage } from '../lib/firebaseService';
 import CategoryIcon from '../components/CategoryIcon';
 import { AFGHAN_PROVINCES } from '../components/ProvinceSelector';
 
@@ -132,17 +133,32 @@ export default function SellView({
     }
   }, [category, subcategory, lang]);
 
-  // Read images and convert to base64 with downscaling
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Read images, convert to base64 with downscaling, and upload to Firebase Storage
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files) return;
-    (Array.from(files) as File[]).forEach((file) => {
-      compressImage(file, 800, 800, 0.8).then((compressedBase64) => {
+    if (!files || files.length === 0) return;
+    
+    setIsUploading(true);
+    const fileArray = Array.from(files) as File[];
+
+    try {
+      for (const file of fileArray) {
+        // Compress images client-side to max 800px width/height / 70% quality (0.7)
+        const compressedBase64 = await compressImage(file, 800, 800, 0.7);
         if (compressedBase64) {
-          setUploadedImages((prev) => [...prev, compressedBase64]);
+          // Upload to Firebase Storage
+          const finalUrl = await uploadListingImage(compressedBase64);
+          setUploadedImages((prev) => [...prev, finalUrl]);
         }
-      });
-    });
+      }
+    } catch (err) {
+      console.error('Image compression or upload error:', err);
+    } finally {
+      setIsUploading(false);
+      e.target.value = ''; // Reset file input
+    }
   };
 
   const removeUploadedImage = (index: number) => {
@@ -527,18 +543,29 @@ export default function SellView({
         </div>
 
         <div
-          onClick={() => fileInputRef.current?.click()}
-          className="w-full bg-zinc-50 border-2 border-dashed border-zinc-200 hover:border-blue-500/50 rounded-2xl py-8 px-4 flex flex-col items-center justify-center text-center cursor-pointer transition-colors duration-250 active:scale-98 shadow-xs"
+          onClick={() => !isUploading && fileInputRef.current?.click()}
+          className={`w-full bg-zinc-50 border-2 border-dashed border-zinc-200 hover:border-blue-500/50 rounded-2xl py-8 px-4 flex flex-col items-center justify-center text-center cursor-pointer transition-colors duration-250 active:scale-98 shadow-xs ${isUploading ? 'opacity-70 cursor-not-allowed' : ''}`}
         >
-          <div className="w-12 h-12 rounded-full bg-blue-600/10 flex items-center justify-center text-blue-600 mb-2.5 border border-blue-600/20">
-            <Camera className="w-5 h-5" />
-          </div>
-          <h4 className="text-zinc-700 font-extrabold text-xs">{translations.photoDropTitle}</h4>
-          <p className="text-zinc-400 text-[10px] mt-1 leading-relaxed font-semibold">
-            {lang === 'en'
-              ? 'Files auto-compressed to preserve bandwidth. First photo is the cover.'
-              : 'حجم تصاویر به طور خودکار بهینه می‌شود. عکس اول پیش‌نمایش یا کاور است.'}
-          </p>
+          {isUploading ? (
+            <div className="flex flex-col items-center justify-center">
+              <div className="w-8 h-8 rounded-full border-4 border-blue-600 border-t-transparent animate-spin mb-3"></div>
+              <p className="text-sm font-bold text-blue-600 animate-pulse">
+                {lang === 'en' ? 'Compressing & uploading...' : 'در حال بهینه‌سازی و آپلود...'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="w-12 h-12 rounded-full bg-blue-600/10 flex items-center justify-center text-blue-600 mb-2.5 border border-blue-600/20">
+                <Camera className="w-5 h-5" />
+              </div>
+              <h4 className="text-zinc-700 font-extrabold text-xs">{translations.photoDropTitle}</h4>
+              <p className="text-zinc-400 text-[10px] mt-1 leading-relaxed font-semibold">
+                {lang === 'en'
+                  ? 'Files auto-compressed to preserve bandwidth. First photo is the cover.'
+                  : 'حجم تصاویر به طور خودکار بهینه می‌شود. عکس اول پیش‌نمایش یا کاور است.'}
+              </p>
+            </>
+          )}
         </div>
 
         <input

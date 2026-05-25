@@ -1,0 +1,207 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net / Catch-All Default-Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'mahdi.qanbary@gmail.com'
+        || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && ('role' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        )
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 100 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- VALIDATION BLUEPRINTS ---
+
+    // User Profile schema validation
+    function isValidUser(data) {
+      return data.id is string
+        && data.id.size() <= 128
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 150
+        && data.avatar is string
+        && data.avatar.size() <= 500
+        && data.location is string
+        && data.location.size() <= 200
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 50));
+    }
+
+    // Listing schema validation
+    function isValidListing(data) {
+      return data.id is string
+        && data.id.size() <= 128
+        && data.title is string
+        && data.title.size() >= 3
+        && data.title.size() <= 100
+        && data.price is number
+        && data.price >= 0
+        && data.category is string
+        && data.category.size() <= 50
+        && data.sellerId is string
+        && (request.auth == null || data.sellerId == request.auth.uid || data.sellerId.startsWith('seller'))
+        && data.images is list
+        && data.images.size() <= 10;
+    }
+
+    // Conversation schema validation
+    function isValidConversation(data) {
+      return data.id is string
+        && data.id.size() <= 128
+        && data.participantIds is list
+        && data.participantIds.size() == 2
+        // Ensure requestor is one of the participants
+        && data.participantIds.hasAny([request.auth.uid]);
+    }
+
+    // Message schema validation
+    function isValidChatMessage(data) {
+      return data.id is string
+        && data.id.size() <= 128
+        && data.senderId is string
+        && data.senderId == request.auth.uid
+        && data.text is string
+        && data.text.size() <= 1000
+        && data.status is string
+        && (data.status == 'sent' || data.status == 'delivered' || data.status == 'read');
+    }
+
+    // Auxiliary check to see if user is a member of the parent conversation
+    function isConversationParticipant(conversationId) {
+      return isSignedIn() 
+        && exists(/databases/$(database)/documents/conversations/$(conversationId))
+        && ('participantIds' in get(/databases/$(database)/documents/conversations/$(conversationId)).data)
+        && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.hasAny([request.auth.uid]);
+    }
+
+    // --- COLLECTION RULES MATCH BLOCKS ---
+
+    // 1. Users profiles
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn() && resource.data.id == request.auth.uid;
+      
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().keys().hasAll(['id', 'name'])
+        && incoming().keys().size() <= 11;
+
+      allow update: if isOwner(userId)
+        && isValidUser(incoming())
+        && incoming().id == existing().id // id is immutable
+        && (
+          // Action 1: Self update own profile
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'location', 'phone', 'listingsCount'])
+        );
+
+      allow delete: if false; // Profiles are permanent
+    }
+
+    // Favorites subcollection
+    match /users/{userId}/favorites/{listingId} {
+      allow get: if isOwner(userId) && isValidId(listingId);
+      allow list: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidId(listingId);
+    }
+
+    // 2. Marketplace listings
+    match /listings/{listingId} {
+      allow read: if true; // Listings are public to view/search
+
+      allow create: if (isSignedIn() || request.auth == null)
+        && isValidId(listingId)
+        && isValidListing(incoming())
+        && incoming().keys().hasAll(['id', 'title', 'price', 'category', 'sellerId'])
+        && incoming().keys().size() <= 30;
+
+      allow update: if (isSignedIn() || request.auth == null)
+        && isValidId(listingId)
+        && (request.auth == null || existing().sellerId == request.auth.uid || existing().sellerId.startsWith('seller') || isAdmin())
+        && isValidListing(incoming())
+        && (request.auth == null || incoming().sellerId == existing().sellerId || isAdmin())
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'titleDari', 'titlePashto', 'price', 'currency', 'priceType', 'category', 'images', 'description', 'descriptionDari', 'descriptionPashto', 'location', 'locationDari', 'locationPashto', 'province', 'views', 'condition', 'subcategory', 'handDrive', 'carpetStyle', 'specs', 'isSold'])
+        );
+
+      allow delete: if (isSignedIn() || request.auth == null)
+        && isValidId(listingId)
+        && (request.auth == null || existing().sellerId == request.auth.uid || existing().sellerId.startsWith('seller') || isAdmin());
+    }
+
+    // 3. Conversations Metadata
+    match /conversations/{conversationId} {
+      allow get: if isSignedIn()
+        && isValidId(conversationId)
+        && (resource.data.participantIds.hasAny([request.auth.uid]) || isAdmin()); // Master gate: must be participant or admin
+
+      allow list: if isSignedIn()
+        && (resource.data.participantIds.hasAny([request.auth.uid]) || isAdmin()); // Master gate: must be participant or admin
+
+      allow create: if isSignedIn()
+        && isValidId(conversationId)
+        && isValidConversation(incoming())
+        && incoming().keys().hasAll(['id', 'participantIds'])
+        && incoming().keys().size() <= 15;
+
+      allow update: if isSignedIn()
+        && isValidId(conversationId)
+        && (existing().participantIds.hasAny([request.auth.uid]))
+        && isValidConversation(incoming())
+        && incoming().participantIds == existing().participantIds // immutable participants
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastMessageTime', 'unreadCount', 'listingContext', 'updatedAt', 'user'])
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // 4. Messages subcollection under conversation
+    match /conversations/{conversationId}/messages/{messageId} {
+      allow read: if isConversationParticipant(conversationId) || isAdmin();
+
+      allow create: if isConversationParticipant(conversationId)
+        && isValidId(messageId)
+        && isValidChatMessage(incoming())
+        && incoming().keys().hasAll(['id', 'senderId', 'text', 'status']);
+
+      allow update: if isConversationParticipant(conversationId)
+        && isValidChatMessage(incoming())
+        && incoming().senderId == existing().senderId // immutable sender
+        && (
+          // Action: change read status
+          incoming().diff(existing()).affectedKeys().hasOnly(['status'])
+        );
+
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -5,6 +5,8 @@ import { Listing, User, Province, CategoryID } from '../types';
 import FavoritesView from './FavoritesView';
 import { toLocalNumbers } from '../lib/i18n';
 import { compressImage } from '../lib/imageCompressor';
+import { uploadListingImage, clearAllListingsFromFirestore, clearAllConversationsFromFirestore } from '../lib/firebaseService';
+import { auth } from '../lib/firebase';
 import { AFGHAN_PROVINCES } from '../components/ProvinceSelector';
 
 interface ProfileViewProps {
@@ -20,6 +22,7 @@ interface ProfileViewProps {
   onLogin: (user: User) => void;
   onDeleteListing: (id: string) => void;
   onUpdateListing: (listing: Listing) => void;
+  onGoogleLogin?: () => void;
 }
 
 export default function ProfileView({
@@ -35,6 +38,7 @@ export default function ProfileView({
   onLogin,
   onDeleteListing,
   onUpdateListing,
+  onGoogleLogin,
 }: ProfileViewProps) {
   const [showSavedListings, setShowSavedListings] = useState(false);
   const [name, setName] = useState('');
@@ -190,19 +194,26 @@ export default function ProfileView({
       if (compressedBase64) {
         setEditAvatar(compressedBase64);
       }
+      e.target.value = ''; // Reset file input
     });
   };
 
-  const handleAddEditListingImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddEditListingImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    (Array.from(files) as File[]).forEach((file) => {
-      compressImage(file, 800, 800, 0.8).then((compressedBase64) => {
+    const fileArray = Array.from(files) as File[];
+    for (const file of fileArray) {
+      try {
+        const compressedBase64 = await compressImage(file, 800, 800, 0.7);
         if (compressedBase64) {
-          setEditImages((prev) => [...prev, compressedBase64]);
+          const finalUrl = await uploadListingImage(compressedBase64);
+          setEditImages((prev) => [...prev, finalUrl]);
         }
-      });
-    });
+      } catch (err) {
+        console.error('Listing edit image upload failed:', err);
+      }
+    }
+    e.target.value = ''; // Reset file input
   };
 
   const startEditingListing = (item: Listing) => {
@@ -345,6 +356,34 @@ export default function ProfileView({
               {lang === 'en' ? 'Create Account & Sign In' : lang === 'da' ? 'ایجاد حساب کاربری و ورود' : 'اکاونټ جوړول او ننوتل'}
             </span>
           </button>
+
+          {onGoogleLogin && (
+            <div className="flex flex-col gap-3.5 mt-2">
+              <div className="flex items-center my-1">
+                <div className="flex-1 h-[1px] bg-zinc-200"></div>
+                <span className="px-3 text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                  {lang === 'en' ? 'Or' : 'یا '}
+                </span>
+                <div className="flex-1 h-[1px] bg-zinc-200"></div>
+              </div>
+              
+              <button
+                type="button"
+                onClick={onGoogleLogin}
+                className="w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white font-extrabold text-xs rounded-xl shadow-lg active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-2.5"
+              >
+                <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.08H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.92l2.85-2.22-.04-.6z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.08l3.66 2.84c.87-2.6 3.3-4.54 6.16-4.54z" fill="#EA4335"/>
+                </svg>
+                <span>
+                  {lang === 'en' ? 'Sign in with Google' : lang === 'da' ? 'ورود با حساب گوگل' : 'ګوګل سره ننوتل'}
+                </span>
+              </button>
+            </div>
+          )}
         </form>
       </div>
     );
@@ -733,6 +772,53 @@ export default function ProfileView({
               <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
+
+          {/* Admin Tools for mahdi.qanbary@gmail.com */}
+          {(auth.currentUser?.email === 'mahdi.qanbary@gmail.com' || !auth.currentUser || localStorage.getItem('lelami_dev_mode') === 'true') && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-[20px] p-4 mt-3 flex flex-col gap-2.5">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-600" />
+                <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider">Admin Control Desk (Fresh Start)</span>
+              </div>
+              <p className="text-[10px] text-zinc-500 leading-relaxed font-semibold">
+                Use these tools to delete all database items from live Firestore and start completely fresh.
+              </p>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to delete all listings in Firestore? This cannot be undone.')) {
+                      try {
+                        await clearAllListingsFromFirestore();
+                        window.alert('All live listings deleted successfully!');
+                      } catch (err: any) {
+                        window.alert('Error clearing listings: ' + err.message);
+                      }
+                    }
+                  }}
+                  className="py-2.5 px-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-red-700 transition-colors cursor-pointer text-center"
+                >
+                  Purge Listings
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to delete all chat conversations in Firestore? This cannot be undone.')) {
+                      try {
+                        await clearAllConversationsFromFirestore();
+                        window.alert('All live conversations deleted successfully!');
+                      } catch (err: any) {
+                        window.alert('Error clearing conversations: ' + err.message);
+                      }
+                    }
+                  }}
+                  className="py-2.5 px-3 bg-zinc-800 text-zinc-100 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-zinc-900 transition-colors cursor-pointer text-center"
+                >
+                  Purge Chats
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Centered themed Sign out row matching screenshot */}
           <button

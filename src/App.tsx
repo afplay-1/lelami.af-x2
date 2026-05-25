@@ -1,8 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { Listing, Job, Conversation, CategoryID, User } from './types';
 import { MOCK_LISTINGS, MOCK_JOBS, MOCK_CONVERSATIONS, MOCK_USERS } from './data/mockData';
 import { TRANSLATIONS, LanguageCode, getDir } from './lib/i18n';
+
+// Import Firebase
+import { auth } from './lib/firebase';
+import { GoogleAuthProvider, signInWithPopup, signOut as fbSignOut, onAuthStateChanged } from 'firebase/auth';
+import {
+  testConnection,
+  saveUserProfile,
+  getUserProfile,
+  createFirestoreListing,
+  updateFirestoreListing,
+  deleteFirestoreListing,
+  subscribeToListings,
+  saveFavorite,
+  removeFavorite,
+  subscribeToFavorites,
+  subscribeToConversations,
+  createConversation,
+} from './lib/firebaseService';
 
 // Import Modular Views
 import HomeView from './views/HomeView';
@@ -22,7 +39,9 @@ export default function App() {
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
 
-  // Dynamic user session and core product state persisted via localStorage
+  const [firebaseUser, setFirebaseUser] = useState<any>(null);
+
+  // Dynamic user session and core product state persisted via localStorage & Firebase Auth
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem('lelami_user_session');
@@ -58,10 +77,99 @@ export default function App() {
       return MOCK_CONVERSATIONS;
     }
   });
+
   const [homeCategory, setHomeCategory] = useState<CategoryID>('all');
   const [selectedCity, setSelectedCity] = useState<string>(() => {
     return localStorage.getItem('lelami_selected_city') || 'all';
   });
+
+  // 1. Firebase Auth state listener
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setFirebaseUser(user);
+        // Load user profile from Firestore or dynamically construct secure profile
+        let profile = await getUserProfile(user.uid);
+        if (!profile) {
+          const namePart = user.displayName || user.email?.split('@')[0] || 'User';
+          const initials = namePart
+            .split(/\s+/)
+            .map((n) => n[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase() || 'GU';
+
+          profile = {
+            id: user.uid,
+            name: namePart,
+            avatar: user.photoURL || initials,
+            location: 'Kabul, Afghanistan',
+            joinDate: '2026',
+            isVerified: false,
+            rating: 5.0,
+            listingsCount: 0,
+            responseTime: '99% inside 1h',
+            phone: user.phoneNumber || '078 000 0000',
+          };
+          await saveUserProfile(profile);
+        }
+        setCurrentUser(profile);
+      } else {
+        setFirebaseUser(null);
+        // Fallback or guest user session
+        const saved = localStorage.getItem('lelami_user_session');
+        if (saved) {
+          setCurrentUser(JSON.parse(saved));
+        } else {
+          setCurrentUser(MOCK_USERS.seller1);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+    };
+  }, []);
+
+  // 2. Real-time listings Firestore listener
+  useEffect(() => {
+    const unsubscribeListings = subscribeToListings(
+      (firebaseListings) => {
+        setListings(firebaseListings);
+      },
+      (err) => {
+        console.error('Error listening to listings:', err);
+      }
+    );
+
+    testConnection();
+
+    return () => {
+      unsubscribeListings();
+    };
+  }, []);
+
+  // 3. Authenticated Favorites listener
+  useEffect(() => {
+    if (!currentUser || !firebaseUser) return;
+    const unsubscribeFavs = subscribeToFavorites(currentUser.id, (loadedFavs) => {
+      setFavorites(loadedFavs);
+    });
+    return () => {
+      unsubscribeFavs();
+    };
+  }, [currentUser?.id, firebaseUser]);
+
+  // 4. Authenticated Chat conversations listener
+  useEffect(() => {
+    if (!currentUser || !firebaseUser) return;
+    const unsubscribeConvs = subscribeToConversations(currentUser.id, (loadedConvs) => {
+      setConversations(loadedConvs);
+    });
+    return () => {
+      unsubscribeConvs();
+    };
+  }, [currentUser?.id, firebaseUser]);
 
   useEffect(() => {
     localStorage.setItem('lelami_selected_city', selectedCity);
@@ -88,13 +196,21 @@ export default function App() {
     localStorage.setItem('lelami_chat_conversations', JSON.stringify(conversations));
   }, [conversations]);
 
-  const handleDeleteListing = (id: string) => {
-    setListings((prev) => prev.filter((l) => l.id !== id));
-    setFavorites((prev) => prev.filter((favId) => favId !== id));
+  const handleDeleteListing = async (id: string) => {
+    if (firebaseUser) {
+      await deleteFirestoreListing(id);
+    } else {
+      setListings((prev) => prev.filter((l) => l.id !== id));
+      setFavorites((prev) => prev.filter((favId) => favId !== id));
+    }
   };
 
-  const handleUpdateListing = (updatedListing: Listing) => {
-    setListings((prev) => prev.map((l) => (l.id === updatedListing.id ? updatedListing : l)));
+  const handleUpdateListing = async (updatedListing: Listing) => {
+    if (firebaseUser) {
+      await createFirestoreListing(updatedListing);
+    } else {
+      setListings((prev) => prev.map((l) => (l.id === updatedListing.id ? updatedListing : l)));
+    }
   };
 
   // Sync RTL attributes to HTML tag on state shift
@@ -105,7 +221,7 @@ export default function App() {
   }, [lang]);
 
   // Handle addition of listings via "Sell An Ad" form
-  const handleAddListing = (ad: Partial<Listing>) => {
+  const handleAddListing = async (ad: Partial<Listing>) => {
     const sellerObj = currentUser || MOCK_USERS.seller1;
     const fullAd: Listing = {
       id: `ad_${Date.now()}`,
@@ -133,16 +249,50 @@ export default function App() {
       condition: ad.condition || 'new',
     };
 
-    setListings((prev) => [fullAd, ...prev]);
+    if (firebaseUser) {
+      await createFirestoreListing(fullAd);
+    } else {
+      setListings((prev) => [fullAd, ...prev]);
+    }
   };
 
-  const handleToggleFavorite = (id: string, e?: React.MouseEvent) => {
+  const handleToggleFavorite = async (id: string, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
     }
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((favId) => favId !== id) : [...prev, id]
-    );
+    const isFav = favorites.includes(id);
+    if (currentUser && firebaseUser) {
+      if (isFav) {
+        await removeFavorite(currentUser.id, id);
+      } else {
+        await saveFavorite(currentUser.id, id);
+      }
+    } else {
+      setFavorites((prev) =>
+        prev.includes(id) ? prev.filter((favId) => favId !== id) : [...prev, id]
+      );
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      if (auth.currentUser) {
+        await fbSignOut(auth);
+      }
+    } catch (e) {
+      console.error('Error logging out of Firebase:', e);
+    }
+    localStorage.removeItem('lelami_user_session');
+    setCurrentUser(null);
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error('Google Sign In Error:', error);
+    }
   };
 
   const currentTranslations = TRANSLATIONS[lang];
@@ -180,6 +330,8 @@ export default function App() {
             onListingSelect={(id) => setSelectedListingId(id)}
             relatedListings={related}
             translations={currentTranslations}
+            currentUser={currentUser}
+            onUpdateListing={handleUpdateListing}
             onStartChat={(sellerName, sellerAvatar, listingTitle, listingPrice, listingImage) => {
               const convId = `conv_${sellerName.toLowerCase().replace(/\s+/g, '_')}`;
               const existingConv = conversations.find((c) => c.id === convId);
@@ -238,6 +390,23 @@ export default function App() {
       }
     }
 
+    const jobsFromListings = listings
+      .filter((l) => l.category === 'jobs' || l.category === 'jobs_services')
+      .map((l) => ({
+        id: l.id,
+        title: l.title,
+        titleDari: l.titleDari || l.title,
+        titlePashto: l.titlePashto || l.title,
+        companyName: l.specs?.Company || l.seller.name || 'Company',
+        logoUrl: l.images && l.images[0] ? l.images[0] : '',
+        jobType: (l.specs?.['Job Type'] as any) || 'Full-time',
+        location: l.location,
+        province: l.province,
+        salary: l.price ? `${l.currency === 'AFN' ? 'AFN' : '$'} ${l.price.toLocaleString()}` : '',
+        postedTime: l.postedTime,
+        description: l.description,
+      }));
+
     switch (activeTab) {
       case 'home':
         return (
@@ -249,7 +418,7 @@ export default function App() {
               setHomeCategory(cat);
             }}
             listings={listings}
-            jobs={MOCK_JOBS}
+            jobs={jobsFromListings}
             favorites={favorites}
             onToggleFavorite={handleToggleFavorite}
             onListingSelect={(id) => setSelectedListingId(id)}
@@ -257,6 +426,7 @@ export default function App() {
             translations={currentTranslations}
             selectedCity={selectedCity}
             onCityChange={setSelectedCity}
+            currentUser={currentUser}
           />
         );
       case 'search':
@@ -302,10 +472,11 @@ export default function App() {
             onToggleFavorite={handleToggleFavorite}
             onListingSelect={(id) => setSelectedListingId(id)}
             currentUser={currentUser}
-            onLogout={() => setCurrentUser(null)}
+            onLogout={handleLogout}
             onLogin={(userObj: User) => setCurrentUser(userObj)}
             onDeleteListing={handleDeleteListing}
             onUpdateListing={handleUpdateListing}
+            onGoogleLogin={handleGoogleLogin}
           />
         );
       default:
@@ -316,7 +487,7 @@ export default function App() {
             selectedCategory="all"
             onCategorySelect={() => {}}
             listings={listings}
-            jobs={MOCK_JOBS}
+            jobs={jobsFromListings}
             favorites={favorites}
             onToggleFavorite={handleToggleFavorite}
             onListingSelect={(id) => setSelectedListingId(id)}
@@ -324,6 +495,7 @@ export default function App() {
             translations={currentTranslations}
             selectedCity={selectedCity}
             onCityChange={setSelectedCity}
+            currentUser={currentUser}
           />
         );
     }
@@ -343,18 +515,12 @@ export default function App() {
         {/* Ensure views render above the ambient elements overlay */}
         <div className="relative z-10 flex flex-col flex-grow">
         {/* Active main screen components */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={selectedListingId ? `listing-${selectedListingId}` : `tab-${activeTab}-${lang}`}
-            initial={{ opacity: 0, scale: 0.98, y: 4 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: -4 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="flex flex-col flex-grow"
-          >
-            {renderActiveView()}
-          </motion.div>
-        </AnimatePresence>
+        <div
+          key={selectedListingId ? `listing-${selectedListingId}` : `tab-${activeTab}-${lang}`}
+          className="flex flex-col flex-grow transition-opacity duration-200"
+        >
+          {renderActiveView()}
+        </div>
 
         {/* Global Floating Glass bottom navbar */}
         <BottomNavbar

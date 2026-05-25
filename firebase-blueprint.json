@@ -1,0 +1,120 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with contact info and system status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "location": { "type": "string" },
+        "joinDate": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "listingsCount": { "type": "number" },
+        "responseTime": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["id", "name", "phone"]
+    },
+    "Listing": {
+      "title": "Listing",
+      "description": "Marketplace classified listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "titleDari": { "type": "string" },
+        "titlePashto": { "type": "string" },
+        "price": { "type": "number" },
+        "currency": { "type": "string" },
+        "priceType": { "type": "string" },
+        "category": { "type": "string" },
+        "images": { "type": "array" },
+        "description": { "type": "string" },
+        "descriptionDari": { "type": "string" },
+        "descriptionPashto": { "type": "string" },
+        "location": { "type": "string" },
+        "locationDari": { "type": "string" },
+        "locationPashto": { "type": "string" },
+        "province": { "type": "string" },
+        "postedTime": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "seller": { "type": "object" },
+        "isVerified": { "type": "boolean" },
+        "views": { "type": "number" },
+        "condition": { "type": "string" },
+        "subcategory": { "type": "string" },
+        "handDrive": { "type": "string" },
+        "carpetStyle": { "type": "string" },
+        "specs": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "price", "category", "sellerId"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "A discussion channel between buyer and seller",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participantIds": { "type": "array" },
+        "user": { "type": "object" },
+        "lastMessage": { "type": "string" },
+        "lastMessageTime": { "type": "string" },
+        "unreadCount": { "type": "number" },
+        "listingContext": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "participantIds"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "An individual chat message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "senderId", "text", "status"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "A saved/starred listing reference for a user",
+      "type": "object",
+      "properties": {
+        "listingId": { "type": "string" },
+        "savedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["listingId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Primary user profiles"
+    },
+    "/users/{userId}/favorites/{listingId}": {
+      "schema": "Favorite",
+      "description": "Saved listings for specific users"
+    },
+    "/listings/{listingId}": {
+      "schema": "Listing",
+      "description": "All marketplace classified active advertisements"
+    },
+    "/conversations/{conversationId}": {
+      "schema": "Conversation",
+      "description": "Metadata for individual user chat sessions"
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Unbounded subcollection storing individual messages"
+    }
+  }
+}

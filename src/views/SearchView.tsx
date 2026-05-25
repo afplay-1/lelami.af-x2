@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
 import { Search, X, SlidersHorizontal, MapPin, Grid, Sliders, Calendar, ArrowUpDown, RefreshCw } from 'lucide-react';
 import { Listing, Province, CategoryID } from '../types';
 import ListingCard from '../components/ListingCard';

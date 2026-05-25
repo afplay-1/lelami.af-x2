@@ -3,6 +3,10 @@ import { ArrowLeft, Send, MessageSquareCode, Paperclip, Mic, CheckCheck } from '
 import { Conversation, ChatMessage } from '../types';
 import { toLocalNumbers } from '../lib/i18n';
 
+// Import Firebase context
+import { auth } from '../lib/firebase';
+import { sendChatMessage } from '../lib/firebaseService';
+
 interface MessagesViewProps {
   lang: 'en' | 'da' | 'pa';
   conversations: Conversation[];
@@ -37,12 +41,14 @@ export default function MessagesView({
     );
   };
 
-  const handleSendMessage = () => {
-    if (chatInput.trim() === '' || !activeConvId) return;
+  const handleSendMessage = async () => {
+    if (chatInput.trim() === '' || !activeConvId || !activeConv) return;
+
+    const currentUserId = auth.currentUser?.uid || 'user_1';
 
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
-      senderId: 'user_1',
+      senderId: currentUserId,
       text: chatInput,
       timestamp: new Date().toLocaleTimeString('en-US', {
         hour: 'numeric',
@@ -53,24 +59,28 @@ export default function MessagesView({
     };
 
     const userTypedMessage = chatInput;
-    const currentConversations = conversations;
-    const conversationsWithUserMsg = currentConversations.map((c) => {
-      if (c.id === activeConvId) {
-        return {
-          ...c,
-          lastMessage: userTypedMessage,
-          lastMessageTime: newMessage.timestamp,
-          messages: [...c.messages, newMessage],
-        };
-      }
-      return c;
-    });
-    
-    onConversationsChange(conversationsWithUserMsg);
     setChatInput('');
 
+    if (auth.currentUser) {
+      await sendChatMessage(activeConvId, newMessage, activeConv);
+    } else {
+      const currentConversations = conversations;
+      const conversationsWithUserMsg = currentConversations.map((c) => {
+        if (c.id === activeConvId) {
+          return {
+            ...c,
+            lastMessage: userTypedMessage,
+            lastMessageTime: newMessage.timestamp,
+            messages: [...c.messages, newMessage],
+          };
+        }
+        return c;
+      });
+      onConversationsChange(conversationsWithUserMsg);
+    }
+
     setIsTyping(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsTyping(false);
 
       const botReplies: Record<string, string[]> = {
@@ -112,8 +122,11 @@ export default function MessagesView({
         status: 'read',
       };
 
-      onConversationsChange(
-        conversationsWithUserMsg.map((c) => {
+      if (auth.currentUser) {
+        await sendChatMessage(activeConvId, replyMsg, activeConv);
+      } else {
+        const currentConversations = conversations;
+        const conversationsWithUserMsg = currentConversations.map((c) => {
           if (c.id === activeConvId) {
             return {
               ...c,
@@ -123,8 +136,9 @@ export default function MessagesView({
             };
           }
           return c;
-        })
-      );
+        });
+        onConversationsChange(conversationsWithUserMsg);
+      }
     }, 2000);
   };
 
