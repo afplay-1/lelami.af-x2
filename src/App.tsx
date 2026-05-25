@@ -45,9 +45,9 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem('lelami_user_session');
-      return saved ? JSON.parse(saved) : MOCK_USERS.seller1;
+      return saved ? JSON.parse(saved) : null;
     } catch {
-      return MOCK_USERS.seller1;
+      return null;
     }
   });
 
@@ -236,7 +236,7 @@ export default function App() {
   const handleAddListing = async (ad: Partial<Listing>) => {
     const sellerObj = currentUser || MOCK_USERS.seller1;
     const fullAd: Listing = {
-      id: ad.id || `ad_${Date.now()}`,
+      id: `ad_${Date.now()}`,
       title: ad.title || 'Untitled Ad',
       titleDari: ad.titleDari || ad.title || 'Untitled Ad',
       titlePashto: ad.titlePashto || ad.title || 'Untitled Ad',
@@ -461,7 +461,6 @@ export default function App() {
             onAddListing={handleAddListing}
             translations={currentTranslations}
             currentUser={currentUser}
-            firebaseUser={firebaseUser}
             onNavChange={setActiveTab}
           />
         );

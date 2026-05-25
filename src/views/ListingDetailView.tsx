@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, Share2, Heart, ShieldAlert, Eye, MapPin, Clock, Award, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { Listing, User } from '../types';
-import { updateFirestoreListing } from '../lib/firebaseService';
 import { CATEGORIES } from '../data/categories';
 import ImageCarousel from '../components/ImageCarousel';
 import WhatsAppButton from '../components/WhatsAppButton';
@@ -149,10 +148,10 @@ export default function ListingDetailView({
                 {formattedPrice}
               </span>
               {listing.isSold && (
-                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-600 text-white font-black text-[10px] tracking-wide uppercase animate-pulse">
-                    {lang === 'en' ? 'SOLD' : lang === 'da' ? 'فروخته شد' : 'پلورل شوی'}
-                  </span>
-                )}
+                <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-600 text-white font-black text-[10px] tracking-wide uppercase animate-pulse">
+                  {lang === 'en' ? 'SOLD' : lang === 'da' ? 'فروخته شد' : 'پلورل شوی'}
+                </span>
+              )}
             </div>
 
             {listing.condition && (
@@ -176,15 +175,8 @@ export default function ListingDetailView({
         {/* Mark as Sold dynamic action for listing owners */}
         {currentUser && currentUser.id === listing.seller.id && !listing.isSold && (
           <button
-            onClick={async () => {
-              try {
-                await updateFirestoreListing(listing.id, { isSold: true });
-                onUpdateListing({ ...listing, isSold: true });
-              } catch (err) {
-                console.error('Failed to mark listing as sold:', err);
-              }
-            }}
-            className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-97 text-center text-xs font-black text-white tracking-wide transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+            onClick={() => onUpdateListing({ ...listing, isSold: true })}
+            className="w-full py-3.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-97 text-center text-xs font-black text-white tracking-wide transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
           >
             <CheckCircle2 className="w-4 h-4 text-white" />
             <span>

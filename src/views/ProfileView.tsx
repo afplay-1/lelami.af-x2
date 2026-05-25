@@ -843,7 +843,7 @@ export default function ProfileView({
           </div>
 
           {/* Admin Tools for mahdi.qanbary@gmail.com */}
-          {(auth.currentUser?.email === 'mahdi.qanbary@gmail.com' || !auth.currentUser || localStorage.getItem('lelami_dev_mode') === 'true') && (
+          {(auth.currentUser?.email === 'mahdi.qanbary@gmail.com') && (
             <div className="bg-amber-500/5 border border-amber-500/20 rounded-[20px] p-4 mt-3 flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
