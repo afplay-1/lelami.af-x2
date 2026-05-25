@@ -53,6 +53,7 @@ export default function HomeView({
 }: HomeViewProps) {
   const [isCityDropdownOpen, setIsCityDropdownOpen] = React.useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
+  const [selectedNotification, setSelectedNotification] = React.useState<any>(null);
   const [notifications, setNotifications] = React.useState([
     {
       id: 'welcome',
@@ -276,6 +277,7 @@ export default function HomeView({
                     key={n.id}
                     onClick={() => {
                       setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, isNew: false } : item));
+                      setSelectedNotification(n);
                     }}
                     className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1 rounded-[20px] relative transition-all cursor-pointer ${
                       n.isNew 
@@ -469,6 +471,89 @@ export default function HomeView({
           ))}
         </div>
       </div>
+
+      {/* Dynamic Notification Detail Modal */}
+      {selectedNotification && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[100] flex items-center justify-center p-4" id="notification-detail-modal">
+          <div className="bg-white rounded-[24px] p-6 max-w-sm w-full shadow-2xl relative flex flex-col gap-4 text-zinc-800 animate-zoom-in">
+            <button 
+              onClick={() => setSelectedNotification(null)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3 mt-2">
+              <div className={`p-3 rounded-2xl ${
+                selectedNotification.category === 'warning' 
+                  ? 'bg-amber-100 text-amber-700' 
+                  : selectedNotification.category === 'welcome' 
+                    ? 'bg-emerald-100 text-emerald-700' 
+                    : 'bg-blue-100 text-blue-700'
+              }`}>
+                {selectedNotification.category === 'warning' ? (
+                  <Info className="w-5 h-5" />
+                ) : selectedNotification.category === 'welcome' ? (
+                  <ShieldCheck className="w-5 h-5" />
+                ) : (
+                  <Sparkles className="w-5 h-5" />
+                )}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">
+                  {selectedNotification.category === 'warning' ? 'Alert' : selectedNotification.category === 'welcome' ? 'Welcome' : 'Tip'}
+                </span>
+                <span className="font-extrabold text-[10px] text-zinc-500 block">
+                  {lang === 'da' ? selectedNotification.timeda : lang === 'pa' ? selectedNotification.timepa : selectedNotification.timeen}
+                </span>
+              </div>
+            </div>
+
+            <h3 className="text-zinc-900 font-extrabold text-base leading-snug">
+              {lang === 'da' ? selectedNotification.titleda : lang === 'pa' ? selectedNotification.titlepa : selectedNotification.titleen}
+            </h3>
+
+            <p className="text-zinc-650 text-xs font-semibold leading-relaxed">
+              {lang === 'da' ? selectedNotification.textda : lang === 'pa' ? selectedNotification.textpa : selectedNotification.texten}
+            </p>
+
+            <div className="mt-2 flex flex-col gap-2">
+              {selectedNotification.id === 'phone_verification' ? (
+                <button
+                  onClick={() => {
+                    setSelectedNotification(null);
+                    setIsNotificationOpen(false);
+                    onNavChange('profile');
+                  }}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl uppercase tracking-wider text-center cursor-pointer transition-colors shadow-xs"
+                >
+                  {lang === 'da' ? 'تنظیم شماره تماس' : lang === 'pa' ? 'خپل نمبر ترتیب کړئ' : 'Configure Phone Number'}
+                </button>
+              ) : selectedNotification.id === 'welcome' ? (
+                <button
+                  onClick={() => {
+                    setSelectedNotification(null);
+                    setIsNotificationOpen(false);
+                  }}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl uppercase tracking-wider text-center cursor-pointer transition-colors shadow-xs"
+                >
+                  {lang === 'da' ? 'شروع جستجو' : lang === 'pa' ? 'بدايت وکړئ' : 'Start Browsing'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setSelectedNotification(null);
+                    setIsNotificationOpen(false);
+                  }}
+                  className="w-full py-3 bg-zinc-900 hover:bg-black text-white font-black text-xs rounded-xl uppercase tracking-wider text-center cursor-pointer transition-colors shadow-xs"
+                >
+                  {lang === 'da' ? 'متوجه شدم' : lang === 'pa' ? 'زه پوه شوم' : 'I Understand'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

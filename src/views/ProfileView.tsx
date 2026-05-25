@@ -69,6 +69,9 @@ export default function ProfileView({
   
   // Custom simple profile tab states
   const [activeSubView, setActiveSubView] = useState<'listings' | 'settings' | null>(null);
+  const [purgeListingsState, setPurgeListingsState] = useState<'idle' | 'confirming' | 'loading' | 'success' | 'error'>('idle');
+  const [purgeChatsState, setPurgeChatsState] = useState<'idle' | 'confirming' | 'loading' | 'success' | 'error'>('idle');
+  const [purgeError, setPurgeError] = useState('');
   const [showScamModal, setShowScamModal] = useState(false);
   const [showLangAlert, setShowLangAlert] = useState(false);
   const [privacyShowPhone, setPrivacyShowPhone] = useState(true);
@@ -776,46 +779,120 @@ export default function ProfileView({
           {/* Admin Tools for mahdi.qanbary@gmail.com */}
           {(auth.currentUser?.email === 'mahdi.qanbary@gmail.com' || !auth.currentUser || localStorage.getItem('lelami_dev_mode') === 'true') && (
             <div className="bg-amber-500/5 border border-amber-500/20 rounded-[20px] p-4 mt-3 flex flex-col gap-2.5">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-amber-600" />
-                <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider">Admin Control Desk (Fresh Start)</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-amber-600" />
+                  <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider">Admin Control Desk (Fresh Start)</span>
+                </div>
+                {purgeError && (
+                  <span className="text-[8px] text-red-600 font-bold block max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                    {purgeError}
+                  </span>
+                )}
               </div>
               <p className="text-[10px] text-zinc-500 leading-relaxed font-semibold">
                 Use these tools to delete all database items from live Firestore and start completely fresh.
               </p>
               <div className="grid grid-cols-2 gap-2 mt-1">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (window.confirm('Are you sure you want to delete all listings in Firestore? This cannot be undone.')) {
+                {/* Purge Listings Button */}
+                {purgeListingsState === 'idle' && (
+                  <button
+                    type="button"
+                    onClick={() => setPurgeListingsState('confirming')}
+                    className="py-2.5 px-3 bg-red-650 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer text-center"
+                  >
+                    Purge Listings
+                  </button>
+                )}
+                {purgeListingsState === 'confirming' && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setPurgeListingsState('loading');
+                      setPurgeError('');
                       try {
                         await clearAllListingsFromFirestore();
-                        window.alert('All live listings deleted successfully!');
+                        setPurgeListingsState('success');
+                        setTimeout(() => setPurgeListingsState('idle'), 1500);
                       } catch (err: any) {
-                        window.alert('Error clearing listings: ' + err.message);
+                        setPurgeError(err.message || 'Error occurred');
+                        setPurgeListingsState('error');
+                        setTimeout(() => setPurgeListingsState('idle'), 3000);
                       }
-                    }
-                  }}
-                  className="py-2.5 px-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-red-700 transition-colors cursor-pointer text-center"
-                >
-                  Purge Listings
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (window.confirm('Are you sure you want to delete all chat conversations in Firestore? This cannot be undone.')) {
+                    }}
+                    className="py-2.5 px-3 bg-red-800 hover:bg-red-900 border border-red-500/30 text-white animate-pulse rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer text-center"
+                  >
+                    Confirm Purge?
+                  </button>
+                )}
+                {purgeListingsState === 'loading' && (
+                  <div className="py-2.5 px-3 bg-zinc-200 text-zinc-500 rounded-xl text-[10px] font-black uppercase tracking-wider text-center animate-pulse">
+                    Purging...
+                  </div>
+                )}
+                {purgeListingsState === 'success' && (
+                  <div className="py-2.5 px-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider text-center font-sans">
+                    ✨ Purged!
+                  </div>
+                )}
+                {purgeListingsState === 'error' && (
+                  <div 
+                    onClick={() => setPurgeListingsState('idle')}
+                    className="py-2.5 px-3 bg-red-100 text-red-700 rounded-xl text-[10px] font-black uppercase tracking-wider text-center cursor-pointer"
+                  >
+                    Failed ⚠️
+                  </div>
+                )}
+
+                {/* Purge Chats Button */}
+                {purgeChatsState === 'idle' && (
+                  <button
+                    type="button"
+                    onClick={() => setPurgeChatsState('confirming')}
+                    className="py-2.5 px-3 bg-zinc-800 hover:bg-zinc-900 text-zinc-100 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer text-center"
+                  >
+                    Purge Chats
+                  </button>
+                )}
+                {purgeChatsState === 'confirming' && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setPurgeChatsState('loading');
+                      setPurgeError('');
                       try {
                         await clearAllConversationsFromFirestore();
-                        window.alert('All live conversations deleted successfully!');
+                        setPurgeChatsState('success');
+                        setTimeout(() => setPurgeChatsState('idle'), 1500);
                       } catch (err: any) {
-                        window.alert('Error clearing conversations: ' + err.message);
+                        setPurgeError(err.message || 'Error occurred');
+                        setPurgeChatsState('error');
+                        setTimeout(() => setPurgeChatsState('idle'), 3000);
                       }
-                    }
-                  }}
-                  className="py-2.5 px-3 bg-zinc-800 text-zinc-100 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-zinc-900 transition-colors cursor-pointer text-center"
-                >
-                  Purge Chats
-                </button>
+                    }}
+                    className="py-2.5 px-3 bg-zinc-950 hover:bg-black border border-zinc-700 text-white animate-pulse rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer text-center"
+                  >
+                    Confirm Purge?
+                  </button>
+                )}
+                {purgeChatsState === 'loading' && (
+                  <div className="py-2.5 px-3 bg-zinc-200 text-zinc-500 rounded-xl text-[10px] font-black uppercase tracking-wider text-center animate-pulse">
+                    Purging...
+                  </div>
+                )}
+                {purgeChatsState === 'success' && (
+                  <div className="py-2.5 px-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider text-center font-sans">
+                    ✨ Purged!
+                  </div>
+                )}
+                {purgeChatsState === 'error' && (
+                  <div 
+                    onClick={() => setPurgeChatsState('idle')}
+                    className="py-2.5 px-3 bg-red-100 text-red-700 rounded-xl text-[10px] font-black uppercase tracking-wider text-center cursor-pointer"
+                  >
+                    Failed ⚠️
+                  </div>
+                )}
               </div>
             </div>
           )}

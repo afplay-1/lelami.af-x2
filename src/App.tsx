@@ -112,6 +112,16 @@ export default function App() {
             phone: user.phoneNumber || '078 000 0000',
           };
           await saveUserProfile(profile);
+        } else {
+          // If the stored avatar is short/initials but Google provides a real picture, sync it!
+          if ((!profile.avatar || profile.avatar.length <= 5) && user.photoURL) {
+            profile.avatar = user.photoURL;
+            try {
+              await saveUserProfile(profile);
+            } catch (err) {
+              console.error('Failed to sync profile photo with Firestore:', err);
+            }
+          }
         }
         setCurrentUser(profile);
       } else {
@@ -197,20 +207,22 @@ export default function App() {
   }, [conversations]);
 
   const handleDeleteListing = async (id: string) => {
-    if (firebaseUser) {
+    try {
       await deleteFirestoreListing(id);
-    } else {
-      setListings((prev) => prev.filter((l) => l.id !== id));
-      setFavorites((prev) => prev.filter((favId) => favId !== id));
+    } catch (err) {
+      console.warn('Error deleting listing from Firestore, fallback to local removal:', err);
     }
+    setListings((prev) => prev.filter((l) => l.id !== id));
+    setFavorites((prev) => prev.filter((favId) => favId !== id));
   };
 
   const handleUpdateListing = async (updatedListing: Listing) => {
-    if (firebaseUser) {
+    try {
       await createFirestoreListing(updatedListing);
-    } else {
-      setListings((prev) => prev.map((l) => (l.id === updatedListing.id ? updatedListing : l)));
+    } catch (err) {
+      console.warn('Error updating listing in Firestore, fallback to local state:', err);
     }
+    setListings((prev) => prev.map((l) => (l.id === updatedListing.id ? updatedListing : l)));
   };
 
   // Sync RTL attributes to HTML tag on state shift
@@ -249,11 +261,13 @@ export default function App() {
       condition: ad.condition || 'new',
     };
 
-    if (firebaseUser) {
+    try {
       await createFirestoreListing(fullAd);
-    } else {
-      setListings((prev) => [fullAd, ...prev]);
+    } catch (err) {
+      console.warn('Error saving listing to Firestore, fallback to local state:', err);
     }
+    // Optimistically include in the list
+    setListings((prev) => [fullAd, ...prev]);
   };
 
   const handleToggleFavorite = async (id: string, e?: React.MouseEvent) => {
@@ -473,7 +487,16 @@ export default function App() {
             onListingSelect={(id) => setSelectedListingId(id)}
             currentUser={currentUser}
             onLogout={handleLogout}
-            onLogin={(userObj: User) => setCurrentUser(userObj)}
+            onLogin={async (userObj: User) => {
+              setCurrentUser(userObj);
+              if (firebaseUser) {
+                try {
+                  await saveUserProfile(userObj);
+                } catch (e) {
+                  console.error('Failed to save profile updates to Firestore:', e);
+                }
+              }
+            }}
             onDeleteListing={handleDeleteListing}
             onUpdateListing={handleUpdateListing}
             onGoogleLogin={handleGoogleLogin}
