@@ -145,13 +145,28 @@ export default function SellView({
 
     try {
       for (const file of fileArray) {
-        // Compress images client-side to max 800px width/height / 70% quality (0.7)
+        // Create an optimistic local preview URL so the user sees the photo INSTANTLY
+        const tempLocalUrl = URL.createObjectURL(file);
+        setUploadedImages((prev) => [...prev, tempLocalUrl]);
+
+        // Compress and upload/fallback in the background
         const compressedBase64 = await compressImage(file, 800, 800, 0.7);
+        let finalUrl = compressedBase64;
+        
         if (compressedBase64) {
-          // Upload to Firebase Storage
-          const finalUrl = await uploadListingImage(compressedBase64);
-          setUploadedImages((prev) => [...prev, finalUrl]);
+          finalUrl = await uploadListingImage(compressedBase64);
         }
+
+        // Swap out the local temp URL with the persistent one (Firebase Storage URL or base64)
+        setUploadedImages((prev) => {
+          const index = prev.indexOf(tempLocalUrl);
+          if (index !== -1) {
+            const list = [...prev];
+            list[index] = finalUrl || tempLocalUrl;
+            return list;
+          }
+          return [...prev, finalUrl];
+        });
       }
     } catch (err) {
       console.error('Image compression or upload error:', err);

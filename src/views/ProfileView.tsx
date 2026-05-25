@@ -79,6 +79,50 @@ export default function ProfileView({
 
   const isRTL = lang === 'da' || lang === 'pa';
 
+  const handleGoogleLoginClick = async () => {
+    if (!onGoogleLogin) return;
+    setLoginError('');
+    try {
+      await onGoogleLogin();
+    } catch (err: any) {
+      console.error("Google login failed style caught in view: ", err);
+      let errMsg = lang === 'en' 
+        ? "Failed to log in with Google."
+        : lang === 'da'
+          ? "ورود با حساب گوگل با خطا مواجه شد."
+          : "ګوګل سره په ننوتلو کې خطا رامنځته شوه.";
+      
+      const code = err?.code || '';
+      if (code === 'auth/unauthorized-domain' || (err?.message && err.message.includes('unauthorized-domain')) || (err?.message && err.message.includes('authDomain')) || (err?.message && err.message.includes('unauthorized_client'))) {
+        errMsg = lang === 'en' 
+          ? "UNAUTHORIZED DOMAIN: This website domain is not whitelisted in the Firebase project's Authorized Domains list. Admin must add this Vercel deployment URL to Firebase Console > Authentication > Settings."
+          : lang === 'da'
+            ? "دامنه غیرمجاز: این وب‌سایت در دامنه‌های مجاز کنسول فایربیس ثبت نشده است. مدیر باید آدرس ورسل شما را در بخش Authentication > Settings کنسول فایربیس اضافه کند."
+            : "سازښت نه لرونکی ډومین: دا ډومین د فایربیس پروژې په واک لرونکو ډومینونو کې نشته. اډمین باید هلته د واک ورکړي.";
+      } else if (err?.message) {
+        errMsg += ` (${err.message})`;
+      }
+      setLoginError(errMsg);
+    }
+  };
+
+  const handleDemoBypassLogin = () => {
+    const testUser: User = {
+      id: "user_test_mahdi",
+      name: "Mahdi Qanbary",
+      avatar: "MQ",
+      location: "Kabul, Afghanistan",
+      joinDate: "2026",
+      isVerified: true,
+      rating: 4.9,
+      listingsCount: 2,
+      responseTime: "100% inside 5 mins",
+      phone: "+93 78 123 4567",
+    };
+    onLogin(testUser);
+    setLoginError('');
+  };
+
   // Handle mock dynamic signup
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,11 +251,25 @@ export default function ProfileView({
     const fileArray = Array.from(files) as File[];
     for (const file of fileArray) {
       try {
+        const tempLocalUrl = URL.createObjectURL(file);
+        setEditImages((prev) => [...prev, tempLocalUrl]);
+
         const compressedBase64 = await compressImage(file, 800, 800, 0.7);
+        let finalUrl = compressedBase64;
+        
         if (compressedBase64) {
-          const finalUrl = await uploadListingImage(compressedBase64);
-          setEditImages((prev) => [...prev, finalUrl]);
+          finalUrl = await uploadListingImage(compressedBase64);
         }
+
+        setEditImages((prev) => {
+          const index = prev.indexOf(tempLocalUrl);
+          if (index !== -1) {
+            const list = [...prev];
+            list[index] = finalUrl || tempLocalUrl;
+            return list;
+          }
+          return [...prev, finalUrl];
+        });
       } catch (err) {
         console.error('Listing edit image upload failed:', err);
       }
@@ -372,7 +430,7 @@ export default function ProfileView({
               
               <button
                 type="button"
-                onClick={onGoogleLogin}
+                onClick={handleGoogleLoginClick}
                 className="w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white font-extrabold text-xs rounded-xl shadow-lg active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-2.5"
               >
                 <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24">
@@ -384,6 +442,14 @@ export default function ProfileView({
                 <span>
                   {lang === 'en' ? 'Sign in with Google' : lang === 'da' ? 'ورود با حساب گوگل' : 'ګوګل سره ننوتل'}
                 </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDemoBypassLogin}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 mt-1 active:scale-98"
+              >
+                <span>⚡ {lang === 'en' ? 'Bypass / Test Account Login' : lang === 'da' ? 'ورود سریع آزمایشی (بدون نیاز به گوگل)' : 'سمدستي ازمایښتي ننوتل'}</span>
               </button>
             </div>
           )}
