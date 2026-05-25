@@ -269,7 +269,7 @@ export default function MessagesView({
           )}
 
           {/* Chat scrollbox listings */}
-          <div className="flex-grow overflow-y-auto px-4 py-4 pb-20 flex flex-col gap-3.5 scrollbar-none">
+          <div className="flex-grow overflow-y-auto px-4 py-4 pb-36 flex flex-col gap-3.5 scrollbar-none">
             {activeConv?.messages.map((m) => {
               const isMe = m.senderId === 'user_1';
               return (
@@ -313,7 +313,7 @@ export default function MessagesView({
           </div>
 
           {/* Bottom input typing console tray */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-zinc-200/80 flex items-center gap-2">
+          <div className="absolute bottom-16 left-0 right-0 p-4 bg-white border-t border-zinc-200/80 flex items-center gap-2">
             <button className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-500 hover:text-zinc-850 cursor-pointer transition-colors active:scale-90 flex-shrink-0 shadow-sm">
               <Paperclip className="w-4.5 h-4.5" />
             </button>
