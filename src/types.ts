@@ -12,7 +12,23 @@ export type Province =
   | 'Bamyan'
   | 'Paktia';
 
-export type CategoryID = 'all' | 'market' | 'realestate' | 'cars' | 'jobs' | 'phones' | 'livestock' | 'services';
+export type CategoryID =
+  | 'all'
+  | 'vehicles'
+  | 'electronics'
+  | 'solar'
+  | 'realestate'
+  | 'agriculture'
+  | 'home'
+  | 'traditional'
+  | 'fashion'
+  | 'jobs_services'
+  | 'market'
+  | 'phones'
+  | 'livestock'
+  | 'services'
+  | 'cars'
+  | 'jobs';
 
 export interface User {
   id: string;
@@ -49,6 +65,9 @@ export interface Listing {
   isVerified: boolean;
   views: number;
   condition: 'new' | 'like_new' | 'used' | 'refurbished';
+  subcategory?: string;
+  handDrive?: 'left' | 'right' | 'ashtari' | '';
+  carpetStyle?: 'turkmen' | 'herati' | 'mazar' | 'other' | '';
   specs?: { [key: string]: string };
 }
 

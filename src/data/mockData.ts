@@ -48,7 +48,8 @@ export const MOCK_LISTINGS: Listing[] = [
     price: 95000,
     currency: 'AFN',
     priceType: 'negotiable',
-    category: 'phones',
+    category: 'electronics',
+    subcategory: 'laptops',
     images: [
       'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?q=80&w=600&auto=format&fit=crop',
@@ -81,7 +82,9 @@ export const MOCK_LISTINGS: Listing[] = [
     price: 740000,
     currency: 'AFN',
     priceType: 'fixed',
-    category: 'cars',
+    category: 'vehicles',
+    subcategory: 'cars',
+    handDrive: 'left',
     images: [
       'https://images.unsplash.com/photo-1617469767053-d3b508a0d822?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?q=80&w=600&auto=format&fit=crop',
@@ -113,7 +116,9 @@ export const MOCK_LISTINGS: Listing[] = [
     price: 32000,
     currency: 'AFN',
     priceType: 'negotiable',
-    category: 'market', // fallback / general
+    category: 'home',
+    subcategory: 'carpets',
+    carpetStyle: 'herati',
     images: [
       'https://images.unsplash.com/photo-1600121848594-d8644e57abab?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1576016770956-debb63d900ad?q=80&w=600&auto=format&fit=crop',
@@ -146,6 +151,7 @@ export const MOCK_LISTINGS: Listing[] = [
     currency: 'AFN',
     priceType: 'per_month',
     category: 'realestate',
+    subcategory: 'apartments',
     images: [
       'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=600&auto=format&fit=crop',
@@ -177,7 +183,8 @@ export const MOCK_LISTINGS: Listing[] = [
     price: 48000,
     currency: 'AFN',
     priceType: 'fixed',
-    category: 'livestock',
+    category: 'agriculture',
+    subcategory: 'livestock',
     images: [
       'https://images.unsplash.com/photo-1484557985045-eaa2520b9b28?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1516467508483-a7212febe31a?q=80&w=600&auto=format&fit=crop',
@@ -209,7 +216,8 @@ export const MOCK_LISTINGS: Listing[] = [
     price: 98000,
     currency: 'AFN',
     priceType: 'negotiable',
-    category: 'phones',
+    category: 'electronics',
+    subcategory: 'mobiles',
     images: [
       'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?q=80&w=600&auto=format&fit=crop',
     ],
@@ -218,7 +226,7 @@ export const MOCK_LISTINGS: Listing[] = [
     descriptionPashto: 'موبایل بیخي نوی دی، د کارولو موده یې ډیره کمه ده. د بیټرۍ روغتیا ۱۰۰٪، دوه سیمکارتونه اففانستان کې فعال دي. سکرین ګلاس ترینه چاپیر دی.',
     location: 'Kabul, Cinema Barekot',
     locationDari: 'کابل، سینما باریکوت',
-    locationPashto: 'کابل، سینما باریکوټ',
+    locationPashto: 'Kابل، سینما باریکوټ',
     province: 'Kabul',
     postedTime: '5 hours ago',
     seller: MOCK_USERS.seller1,

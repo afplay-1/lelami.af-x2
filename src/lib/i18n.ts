@@ -251,6 +251,153 @@ export const TRANSLATIONS: Record<LanguageCode, Translation> = {
   },
 };
 
+const EN_TO_LOCAL_DIGITS: Record<string, string> = {
+  '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴', '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹'
+};
+
+export function toLocalNumbers(val: string | number, lang: LanguageCode): string {
+  const str = String(val);
+  if (lang === 'en') return str;
+  return str.split('').map(char => EN_TO_LOCAL_DIGITS[char] || char).join('');
+}
+
+export function formatLocalCurrency(price: number, lang: LanguageCode, currency: 'AFN' | 'USD' = 'AFN'): string {
+  if (currency === 'USD') {
+    if (lang === 'en') {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0,
+      }).format(price);
+    }
+
+    const formattedEN = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(price);
+    const localThousand = formattedEN.replace(/,/g, '٬');
+    const localDigits = toLocalNumbers(localThousand, lang);
+
+    if (lang === 'da') {
+      return `${localDigits} دالر`;
+    } else {
+      return `${localDigits} ډالر`;
+    }
+  }
+
+  if (lang === 'en') {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'AFN',
+      maximumFractionDigits: 0,
+    }).format(price).replace('AFN', 'AFN ');
+  }
+
+  const formattedEN = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(price);
+  const localThousand = formattedEN.replace(/,/g, '٬');
+  const localDigits = toLocalNumbers(localThousand, lang);
+
+  if (lang === 'da') {
+    return `${localDigits} افغانی`;
+  } else {
+    return `${localDigits} افغانۍ`;
+  }
+}
+
+export function translateDate(dateStr: string, lang: LanguageCode): string {
+  if (lang === 'en' || !dateStr) return dateStr;
+
+  const trimmed = dateStr.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (lang === 'da') {
+    if (lower === 'just now' || lower === 'هم-اکنون' || lower === 'هم‌اکنون') return 'هم‌اکنون';
+    if (lower === 'today') return 'امروز';
+    if (lower === 'yesterday') return 'دیروز';
+
+    const daysMatch = lower.match(/^(\d+)\s+days?\s+ago$/);
+    if (daysMatch) {
+      return `${toLocalNumbers(daysMatch[1], 'da')} روز قبل`;
+    }
+
+    const hoursMatch = lower.match(/^(\d+)\s+hours?\s+ago$/);
+    if (hoursMatch) {
+      return `${toLocalNumbers(hoursMatch[1], 'da')} ساعت قبل`;
+    }
+
+    const minsMatch = lower.match(/^(\d+)\s+mins?\s+ago$/);
+    if (minsMatch) {
+      return `${toLocalNumbers(minsMatch[1], 'da')} دقیقه قبل`;
+    }
+
+    return toLocalNumbers(trimmed, 'da');
+  } else {
+    if (lower === 'just now' || lower === 'همدا اوس') return 'همدا اوس';
+    if (lower === 'today') return 'نن';
+    if (lower === 'yesterday') return 'پرون';
+
+    const daysMatch = lower.match(/^(\d+)\s+days?\s+ago$/);
+    if (daysMatch) {
+      return `${toLocalNumbers(daysMatch[1], 'pa')} ورځې وړاندې`;
+    }
+
+    const hoursMatch = lower.match(/^(\d+)\s+hours?\s+ago$/);
+    if (hoursMatch) {
+      return `${toLocalNumbers(hoursMatch[1], 'pa')} ساعته وړاندې`;
+    }
+
+    const minsMatch = lower.match(/^(\d+)\s+mins?\s+ago$/);
+    if (minsMatch) {
+      return `${toLocalNumbers(minsMatch[1], 'pa')} دقیقې وړاندې`;
+    }
+
+    return toLocalNumbers(trimmed, 'pa');
+  }
+}
+
+const LOCATION_TRANSLATIONS: Record<string, { da: string; pa: string }> = {
+  'kabul': { da: 'کابل', pa: 'کابل' },
+  'herat': { da: 'هرات', pa: 'هرات' },
+  'balkh': { da: 'بلخ', pa: 'بلخ' },
+  'nangarhar': { da: 'ننگرهار', pa: 'ننگرهار' },
+  'kandahar': { da: 'کندهار', pa: 'کندهار' },
+  'kunduz': { da: 'کندز', pa: 'کندز' },
+  'ghazni': { da: 'غزنی', pa: 'غزني' },
+  'kapisa': { da: 'کاپیسا', pa: 'کاپیسا' },
+  'logar': { da: 'لوگر', pa: 'لوګر' },
+  'afghanistan': { da: 'افغانستان', pa: 'افغانستان' },
+  'center': { da: 'مرکز', pa: 'مرکز' },
+  'shhr': { da: 'شهر نو', pa: 'شهر نو' },
+  'shahr-e': { da: 'شهر نو', pa: 'شهر نو' },
+  'shahr-e naw': { da: 'شهر نو', pa: 'شهر نو' },
+};
+
+export function translateLocation(locationStr: string, lang: LanguageCode): string {
+  if (lang === 'en' || !locationStr) return locationStr;
+
+  if (/[\u0600-\u06FF]/.test(locationStr)) {
+    return locationStr;
+  }
+
+  // Handle common compound strings
+  const lowerInput = locationStr.toLowerCase().trim();
+  if (lowerInput.includes('shahr-e naw') || lowerInput.includes('shahr-e-naw')) {
+    const prefix = lang === 'da' ? 'شهر نو' : 'شهر نو';
+    if (lowerInput.includes('kabul')) {
+      return lang === 'da' ? 'کابل، شهر نو' : 'کابل، شهر نو';
+    }
+    return prefix;
+  }
+
+  const parts = locationStr.split(/,?\s+/);
+  const translatedParts = parts.map(part => {
+    const key = part.toLowerCase().replace(/,/g, '').trim();
+    if (LOCATION_TRANSLATIONS[key]) {
+      return LOCATION_TRANSLATIONS[key][lang];
+    }
+    return toLocalNumbers(part, lang);
+  });
+
+  return translatedParts.filter(Boolean).join('، ');
+}
+
 export function getDir(lang: LanguageCode): 'rtl' | 'ltr' {
   return lang === 'da' || lang === 'pa' ? 'rtl' : 'ltr';
 }

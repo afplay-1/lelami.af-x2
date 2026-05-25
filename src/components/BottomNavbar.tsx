@@ -21,19 +21,22 @@ export default function BottomNavbar({
   labels,
 }: BottomNavbarProps) {
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-4 pb-6 pt-3 bg-black/30 backdrop-blur-md z-50 transition-all select-none">
-      <div className="flex bg-black/40 backdrop-blur-2xl rounded-full py-2.5 px-6 border border-white/10 items-center justify-around gap-1 shadow-2xl">
+    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-4 pb-4 pt-2 bg-gradient-to-t from-zinc-100/80 to-transparent backdrop-blur-sm z-50 transition-all select-none">
+      <div 
+        className="flex bg-white/95 backdrop-blur-xl rounded-full py-2.5 px-5 border border-zinc-200/80 items-center justify-around gap-0.5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]"
+        style={{ direction: 'ltr' }} // Enforces LTR tab sequencing under all locales (Home -> Search -> Sell -> Messages -> Profile)
+      >
         {/* Home */}
         <button
           onClick={() => onTabChange('home')}
           className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl gap-0.5 transition-all duration-300 pointer-events-auto cursor-pointer ${
             activeTab === 'home'
-              ? 'text-orange-500 scale-105 font-black'
-              : 'text-white/50 hover:text-white'
+              ? 'text-blue-600 scale-105 font-black'
+              : 'text-zinc-400 hover:text-zinc-600'
           }`}
         >
-          <Home className="w-5.2 h-5.2 stroke-[2.2]" />
-          <span className="text-[9px] font-bold tracking-wider uppercase">{labels.home}</span>
+          <Home className="w-5 h-5 stroke-[2.2]" />
+          <span className="text-[9px] font-extrabold tracking-wider uppercase">{labels.home}</span>
         </button>
 
         {/* Search */}
@@ -41,25 +44,25 @@ export default function BottomNavbar({
           onClick={() => onTabChange('search')}
           className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl gap-0.5 transition-all duration-300 pointer-events-auto cursor-pointer ${
             activeTab === 'search'
-              ? 'text-orange-500 scale-105 font-black'
-              : 'text-white/50 hover:text-white'
+              ? 'text-blue-600 scale-105 font-black'
+              : 'text-zinc-400 hover:text-zinc-600'
           }`}
         >
-          <Search className="w-5.2 h-5.2 stroke-[2.2]" />
-          <span className="text-[9px] font-bold tracking-wider uppercase">{labels.search}</span>
+          <Search className="w-5 h-5 stroke-[2.2]" />
+          <span className="text-[9px] font-extrabold tracking-wider uppercase">{labels.search}</span>
         </button>
 
-        {/* Sell (Custom Center Highlighted button like willhaben / olx / lelami) */}
+        {/* Sell Button */}
         <button
           onClick={() => onTabChange('sell')}
           className="flex-1 flex flex-col items-center justify-center -mt-8 transition-all duration-300 pointer-events-auto cursor-pointer group"
         >
-          <div className="w-12 h-12 rounded-full bg-orange-500 border-4 border-[#050505] flex items-center justify-center text-black shadow-lg shadow-orange-500/45 group-hover:scale-110 group-active:scale-90 transition-all">
+          <div className="w-12 h-12 rounded-full bg-blue-600 border-4 border-white flex items-center justify-center text-white shadow-lg shadow-blue-500/35 group-hover:scale-110 group-active:scale-95 transition-all">
             <Plus className="w-6 h-6 stroke-[3]" />
           </div>
           <span
-            className={`text-[9px] font-bold tracking-wider uppercase mt-1 transition-colors duration-200 ${
-              activeTab === 'sell' ? 'text-orange-400 font-extrabold' : 'text-white/50'
+            className={`text-[9px] font-extrabold tracking-wider uppercase mt-1 transition-colors duration-200 ${
+              activeTab === 'sell' ? 'text-blue-600 font-extrabold' : 'text-zinc-400'
             }`}
           >
             {labels.sell}
@@ -71,15 +74,15 @@ export default function BottomNavbar({
           onClick={() => onTabChange('messages')}
           className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl gap-0.5 transition-all duration-300 pointer-events-auto cursor-pointer relative ${
             activeTab === 'messages'
-              ? 'text-orange-500 scale-105 font-black'
-              : 'text-white/50 hover:text-white'
+              ? 'text-blue-600 scale-105 font-black'
+              : 'text-zinc-400 hover:text-zinc-600'
           }`}
         >
-          <MessageSquare className="w-5.2 h-5.2 stroke-[2.2]" />
-          <span className="text-[9px] font-bold tracking-wider uppercase">{labels.messages}</span>
+          <MessageSquare className="w-5 h-5 stroke-[2.2]" />
+          <span className="text-[9px] font-extrabold tracking-wider uppercase">{labels.messages}</span>
 
           {unreadMessagesCount > 0 && (
-            <span className="absolute top-0 right-3 w-4 h-4 bg-orange-600 rounded-full border border-black flex items-center justify-center text-[9px] font-extrabold text-black">
+            <span className="absolute top-0 right-3.5 w-4.5 h-4.5 bg-blue-600 rounded-full border border-white flex items-center justify-center text-[9px] font-black text-white shadow-sm">
               {unreadMessagesCount}
             </span>
           )}
@@ -90,12 +93,12 @@ export default function BottomNavbar({
           onClick={() => onTabChange('profile')}
           className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-2xl gap-0.5 transition-all duration-300 pointer-events-auto cursor-pointer ${
             activeTab === 'profile'
-              ? 'text-orange-500 scale-105 font-black'
-              : 'text-white/50 hover:text-white'
+              ? 'text-blue-600 scale-105 font-black'
+              : 'text-zinc-400 hover:text-zinc-600'
           }`}
         >
-          <User className="w-5.2 h-5.2 stroke-[2.2]" />
-          <span className="text-[9px] font-bold tracking-wider uppercase">{labels.profile}</span>
+          <User className="w-5 h-5 stroke-[2.2]" />
+          <span className="text-[9px] font-extrabold tracking-wider uppercase">{labels.profile}</span>
         </button>
       </div>
     </div>

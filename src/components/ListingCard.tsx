@@ -2,6 +2,7 @@ import React from 'react';
 import { Heart, MapPin, Clock } from 'lucide-react';
 import { Listing } from '../types';
 import VerifiedBadge from './VerifiedBadge';
+import { formatLocalCurrency, translateDate, translateLocation, toLocalNumbers } from '../lib/i18n';
 
 interface ListingCardProps {
   key?: string;
@@ -21,26 +22,22 @@ export default function ListingCard({
 }: ListingCardProps) {
   // Get locale titles and locations
   const getTitle = () => {
-    if (lang === 'da' && listing.titleDari) return listing.titleDari;
-    if (lang === 'pa' && listing.titlePashto) return listing.titlePashto;
-    return listing.title;
+    if (lang === 'da' && listing.titleDari) return toLocalNumbers(listing.titleDari, lang);
+    if (lang === 'pa' && listing.titlePashto) return toLocalNumbers(listing.titlePashto, lang);
+    return toLocalNumbers(listing.title, lang);
   };
 
   const getLocation = () => {
-    if (lang === 'da' && listing.locationDari) return listing.locationDari;
-    if (lang === 'pa' && listing.locationPashto) return listing.locationPashto;
-    return listing.location;
+    const rawLoc = (lang === 'da' && listing.locationDari) 
+      ? listing.locationDari 
+      : (lang === 'pa' && listing.locationPashto) 
+        ? listing.locationPashto 
+        : listing.location;
+    return translateLocation(rawLoc, lang);
   };
 
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'AFN',
-    maximumFractionDigits: 0,
-  })
-    .format(listing.price)
-    .replace('AFN', 'AFN '); // Nice spacing
-
   const getPriceLabel = () => {
+    const formattedPrice = formatLocalCurrency(listing.price, lang, listing.currency);
     if (listing.priceType === 'per_month') {
       return `${formattedPrice} ${lang === 'en' ? '/ mo' : lang === 'da' ? '/ ماهانه' : '/ میاشتنی'}`;
     }
@@ -50,10 +47,10 @@ export default function ListingCard({
   return (
     <div
       onClick={onClick}
-      className="group flex flex-col bg-white/5 border border-white/10 rounded-[24px] overflow-hidden hover:border-orange-500/30 transition-all duration-300 shadow-md hover:shadow-2xl cursor-pointer select-none backdrop-blur-md"
+      className="group flex flex-col bg-white border border-zinc-200/90 rounded-[24px] overflow-hidden hover:border-blue-500/30 transition-all duration-300 shadow-sm hover:shadow-lg cursor-pointer select-none"
     >
       {/* Thumbnail */}
-      <div className="relative aspect-[4/3] bg-zinc-800 overflow-hidden">
+      <div className="relative aspect-[4/3] bg-zinc-100 overflow-hidden">
         <img
           src={listing.images[0]}
           alt={getTitle()}
@@ -68,7 +65,7 @@ export default function ListingCard({
             e.stopPropagation();
             onToggleFavorite(e);
           }}
-          className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-neutral-700/50 hover:bg-black/80 active:scale-90 transition-all cursor-pointer z-10"
+          className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-full bg-black/40 backdrop-blur-md border border-white/10 hover:bg-black/60 active:scale-90 transition-all cursor-pointer z-10"
         >
           <Heart
             className={`w-4.5 h-4.5 transition-colors duration-300 ${isFavorite ? 'fill-red-500 text-red-500 scale-110' : 'text-white'}`}
@@ -84,32 +81,32 @@ export default function ListingCard({
       </div>
 
       {/* Body Content */}
-      <div className="flex flex-col flex-grow p-3.5">
-        <h4 className="text-zinc-100 font-bold text-sm tracking-tight leading-snug line-clamp-2 min-h-[2.5rem] group-hover:text-orange-400 transition-colors duration-200">
+      <div className="flex flex-col flex-grow p-3.5 bg-white">
+        <h4 className="text-zinc-850 font-bold text-sm tracking-tight leading-snug line-clamp-2 min-h-[2.5rem] group-hover:text-blue-600 transition-colors duration-200">
           {getTitle()}
         </h4>
 
         {/* Prices and stats */}
         <div className="mt-2.5 flex flex-col gap-0.5">
-          <span className="text-orange-500 text-base font-extrabold tracking-tight">
+          <span className="text-blue-600 text-base font-extrabold tracking-tight">
             {getPriceLabel()}
           </span>
           {listing.priceType === 'negotiable' && (
-            <span className="text-[10px] text-zinc-400 font-medium">
+            <span className="text-[10px] text-zinc-500 font-medium font-semibold">
               {lang === 'en' ? 'Negotiable' : lang === 'da' ? 'جورآمد دارد' : 'جوړ جاړی شته'}
             </span>
           )}
         </div>
 
         {/* Footer Meta */}
-        <div className="mt-auto pt-3 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-400 font-medium select-none">
+        <div className="mt-auto pt-3 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-500 font-semibold select-none">
           <span className="flex items-center gap-1 max-w-[65%] truncate">
-            <MapPin className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
+            <MapPin className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
             <span className="truncate">{getLocation()}</span>
           </span>
-          <span className="flex items-center gap-1 flex-shrink-0 text-zinc-500">
-            <Clock className="w-3 h-3" />
-            <span>{listing.postedTime}</span>
+          <span className="flex items-center gap-1 flex-shrink-0 text-zinc-400">
+            <Clock className="w-3   h-3" />
+            <span>{translateDate(listing.postedTime, lang)}</span>
           </span>
         </div>
       </div>

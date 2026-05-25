@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
+import { toLocalNumbers } from '../lib/i18n';
 
 interface PriceRangeSliderProps {
   minVal: number;
@@ -69,12 +70,12 @@ export default function PriceRangeSlider({
       {/* Absolute Overlaid Slider */}
       <div className="relative h-6 flex items-center w-full">
         {/* Underlay Track */}
-        <div className="absolute h-1.5 w-full bg-white/10 rounded-full z-0 pointer-events-none" />
+        <div className="absolute h-1.5 w-full bg-zinc-200 rounded-full z-0 pointer-events-none" />
 
         {/* Selected Accent Track */}
         <div
           ref={rangeRef}
-          className="absolute h-1.5 bg-orange-500 rounded-full z-10 pointer-events-none shadow-[0_0_8px_rgba(249,115,22,0.4)]"
+          className="absolute h-1.5 bg-blue-600 rounded-full z-10 pointer-events-none shadow-[0_0_8px_rgba(37,99,235,0.35)]"
         />
 
         {/* Input sliders */}
@@ -86,8 +87,8 @@ export default function PriceRangeSlider({
           value={minVal}
           onChange={handleMinChange}
           className="absolute w-full h-1 bg-transparent appearance-none pointer-events-none z-20 outline-none
-            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-black/50 [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:active:scale-125
-            [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-orange-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-black/50 [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:transition-transform [&::-moz-range-thumb]:active:scale-125 focus:outline-none"
+            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:active:scale-125
+            [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:transition-transform [&::-moz-range-thumb]:active:scale-125 focus:outline-none"
         />
         <input
           type="range"
@@ -97,15 +98,15 @@ export default function PriceRangeSlider({
           value={maxVal}
           onChange={handleMaxChange}
           className="absolute w-full h-1 bg-transparent appearance-none pointer-events-none z-20 outline-none
-            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-black/50 [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:active:scale-125
-            [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-orange-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-black/50 [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:transition-transform [&::-moz-range-thumb]:active:scale-125 focus:outline-none"
+            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:active:scale-125
+            [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:transition-transform [&::-moz-range-thumb]:active:scale-125 focus:outline-none"
         />
       </div>
 
       {/* Manual Inputs synchronized with the sliders */}
       <div className="flex gap-2.5 items-center w-full" style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
         <div className="flex-1 flex flex-col gap-1">
-          <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wide">
+          <span className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wide text-left">
             {lang === 'en' ? 'Min (AFN)' : lang === 'da' ? 'حداقل (افغانی)' : 'لږترلږه (افغانۍ)'}
           </span>
           <input
@@ -118,14 +119,14 @@ export default function PriceRangeSlider({
               onChange(val, maxVal);
             }}
             placeholder="0"
-            className="w-full bg-[#101010] border border-white/10 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-zinc-100 outline-none focus:border-orange-500/40"
+            className="w-full bg-white border border-zinc-200 rounded-xl px-2.5 py-2 text-xs font-mono font-extrabold text-zinc-800 outline-none focus:border-blue-500/40 shadow-sm"
           />
         </div>
 
-        <span className="text-zinc-500 font-extrabold mt-4">—</span>
+        <span className="text-zinc-400 font-extrabold mt-4">—</span>
 
         <div className="flex-1 flex flex-col gap-1">
-          <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wide">
+          <span className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wide text-left">
             {lang === 'en' ? 'Max (AFN)' : lang === 'da' ? 'حداکثر (افغانی)' : 'لوړ پوره (افغانۍ)'}
           </span>
           <input
@@ -137,8 +138,8 @@ export default function PriceRangeSlider({
               const val = Math.max(minVal + step, Math.min(Number(e.target.value), maxLimit));
               onChange(minVal, val);
             }}
-            placeholder={formatCurrency(maxLimit)}
-            className="w-full bg-[#101010] border border-white/10 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-zinc-100 outline-none focus:border-orange-500/40"
+            placeholder={toLocalNumbers(formatCurrency(maxLimit), lang)}
+            className="w-full bg-white border border-zinc-200 rounded-xl px-2.5 py-2 text-xs font-mono font-extrabold text-zinc-805 outline-none focus:border-blue-500/40 shadow-sm"
           />
         </div>
       </div>

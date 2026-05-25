@@ -17,9 +17,10 @@ import FavoritesView from './views/FavoritesView';
 import BottomNavbar from './components/BottomNavbar';
 
 export default function App() {
-  const [lang, setLang] = useState<LanguageCode>('da');
+  const [lang, setLang] = useState<LanguageCode>('en');
   const [activeTab, setActiveTab] = useState<string>('home');
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
 
   // Dynamic user session and core product state persisted via localStorage
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -49,8 +50,22 @@ export default function App() {
     }
   });
 
-  const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    try {
+      const saved = localStorage.getItem('lelami_chat_conversations');
+      return saved ? JSON.parse(saved) : MOCK_CONVERSATIONS;
+    } catch {
+      return MOCK_CONVERSATIONS;
+    }
+  });
   const [homeCategory, setHomeCategory] = useState<CategoryID>('all');
+  const [selectedCity, setSelectedCity] = useState<string>(() => {
+    return localStorage.getItem('lelami_selected_city') || 'all';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('lelami_selected_city', selectedCity);
+  }, [selectedCity]);
 
   // Sync state modifications to localized client's Storage
   useEffect(() => {
@@ -69,6 +84,19 @@ export default function App() {
     localStorage.setItem('lelami_starred_favorites', JSON.stringify(favorites));
   }, [favorites]);
 
+  useEffect(() => {
+    localStorage.setItem('lelami_chat_conversations', JSON.stringify(conversations));
+  }, [conversations]);
+
+  const handleDeleteListing = (id: string) => {
+    setListings((prev) => prev.filter((l) => l.id !== id));
+    setFavorites((prev) => prev.filter((favId) => favId !== id));
+  };
+
+  const handleUpdateListing = (updatedListing: Listing) => {
+    setListings((prev) => prev.map((l) => (l.id === updatedListing.id ? updatedListing : l)));
+  };
+
   // Sync RTL attributes to HTML tag on state shift
   useEffect(() => {
     const dir = getDir(lang);
@@ -85,7 +113,7 @@ export default function App() {
       titleDari: ad.titleDari || ad.title || 'Untitled Ad',
       titlePashto: ad.titlePashto || ad.title || 'Untitled Ad',
       price: ad.price || 0,
-      currency: 'AFN',
+      currency: ad.currency || 'AFN',
       priceType: 'negotiable',
       category: ad.category || 'market',
       images: ad.images && ad.images.length > 0 ? ad.images : [
@@ -102,7 +130,7 @@ export default function App() {
       seller: sellerObj, // authored by logged-in user
       isVerified: sellerObj.isVerified || false,
       views: 1,
-      condition: 'new',
+      condition: ad.condition || 'new',
     };
 
     setListings((prev) => [fullAd, ...prev]);
@@ -152,6 +180,59 @@ export default function App() {
             onListingSelect={(id) => setSelectedListingId(id)}
             relatedListings={related}
             translations={currentTranslations}
+            onStartChat={(sellerName, sellerAvatar, listingTitle, listingPrice, listingImage) => {
+              const convId = `conv_${sellerName.toLowerCase().replace(/\s+/g, '_')}`;
+              const existingConv = conversations.find((c) => c.id === convId);
+
+              if (!existingConv) {
+                const newConv: Conversation = {
+                  id: convId,
+                  user: {
+                    name: sellerName,
+                    avatar: sellerAvatar,
+                    isOnline: true,
+                  },
+                  lastMessage: lang === 'en'
+                    ? `Interested in ${listingTitle}`
+                    : lang === 'da'
+                    ? `علاقمند به ${listingTitle}`
+                    : `مینه وال په ${listingTitle}`,
+                  lastMessageTime: new Date().toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  }),
+                  unreadCount: 0,
+                  listingContext: {
+                    title: listingTitle,
+                    price: listingPrice,
+                    image: listingImage,
+                  },
+                  messages: [
+                    {
+                      id: Date.now().toString(),
+                      senderId: 'user_1',
+                      text: lang === 'en'
+                        ? `Salam ${sellerName}, I am interested in your listing "${listingTitle}" listed for ${listingPrice} on lelami.af 🇦🇫. Is it still available?`
+                        : lang === 'da'
+                        ? `سلام ${sellerName}، من به آگهی شما "${listingTitle}" به قیمت ${listingPrice} در لیلامی علاقمند هستم. آیا هنوز موجود است؟`
+                        : `سلام ${sellerName}، زه ستاسو اعلان "${listingTitle}" په باره کې په لیلامي ویبپاڼه کې معلومات غواړم. ایا اوس هم شته دی؟`,
+                      timestamp: new Date().toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true,
+                      }),
+                      status: 'sent',
+                    }
+                  ],
+                };
+                setConversations([newConv, ...conversations]);
+              }
+
+              setActiveConvId(convId);
+              setSelectedListingId(null);
+              setActiveTab('messages');
+            }}
           />
         );
       }
@@ -174,6 +255,8 @@ export default function App() {
             onListingSelect={(id) => setSelectedListingId(id)}
             onNavChange={setActiveTab}
             translations={currentTranslations}
+            selectedCity={selectedCity}
+            onCityChange={setSelectedCity}
           />
         );
       case 'search':
@@ -201,8 +284,11 @@ export default function App() {
         return (
           <MessagesView
             lang={lang}
-            initialConversations={conversations}
+            conversations={conversations}
+            onConversationsChange={setConversations}
             translations={currentTranslations}
+            activeConvId={activeConvId}
+            setActiveConvId={setActiveConvId}
           />
         );
       case 'profile':
@@ -218,6 +304,8 @@ export default function App() {
             currentUser={currentUser}
             onLogout={() => setCurrentUser(null)}
             onLogin={(userObj: User) => setCurrentUser(userObj)}
+            onDeleteListing={handleDeleteListing}
+            onUpdateListing={handleUpdateListing}
           />
         );
       default:
@@ -234,20 +322,22 @@ export default function App() {
             onListingSelect={(id) => setSelectedListingId(id)}
             onNavChange={setActiveTab}
             translations={currentTranslations}
+            selectedCity={selectedCity}
+            onCityChange={setSelectedCity}
           />
         );
     }
   };
 
   return (
-    <div className="relative min-h-screen bg-[#050505] flex justify-center text-zinc-100 font-sans antialiased overflow-x-hidden p-0 m-0">
+    <div className="relative min-h-screen bg-zinc-100 flex justify-center text-zinc-900 font-sans antialiased overflow-x-hidden p-0 m-0">
       {/* Container simulating a refined, premium edge-to-edge mobile container width */}
-      <div className="w-full max-w-[480px] bg-[#050505]/95 flex flex-col shadow-2xl relative min-h-screen border-x border-white/5 overflow-x-hidden overflow-y-auto">
-        {/* Frosted Glass ambient glows */}
+      <div className="w-full max-w-[480px] bg-white flex flex-col shadow-xl relative min-h-screen border-x border-zinc-200/80 overflow-x-hidden overflow-y-auto">
+        {/* Soft elegant ambient glows */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-          <div className="absolute -top-20 -left-20 w-80 h-80 bg-orange-600/10 rounded-full blur-[100px]"></div>
+          <div className="absolute -top-20 -left-20 w-80 h-80 bg-blue-600/5 rounded-full blur-[100px]"></div>
           <div className="absolute top-1/3 -right-20 w-80 h-80 bg-blue-600/10 rounded-full blur-[100px]"></div>
-          <div className="absolute bottom-10 -left-10 w-72 h-72 bg-orange-600/5 rounded-full blur-[90px]"></div>
+          <div className="absolute bottom-10 -left-10 w-72 h-72 bg-blue-600/5 rounded-full blur-[90px]"></div>
         </div>
 
         {/* Ensure views render above the ambient elements overlay */}

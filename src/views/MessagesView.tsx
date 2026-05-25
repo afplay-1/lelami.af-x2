@@ -1,16 +1,30 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Send, MessageSquareCode, Paperclip, Mic, CheckCheck } from 'lucide-react';
 import { Conversation, ChatMessage } from '../types';
+import { toLocalNumbers } from '../lib/i18n';
 
 interface MessagesViewProps {
   lang: 'en' | 'da' | 'pa';
-  initialConversations: Conversation[];
+  conversations: Conversation[];
+  onConversationsChange: (conversations: Conversation[]) => void;
   translations: any;
+  activeConvId?: string | null;
+  setActiveConvId?: (id: string | null) => void;
 }
 
-export default function MessagesView({ lang, initialConversations, translations }: MessagesViewProps) {
-  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
-  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+export default function MessagesView({
+  lang,
+  conversations,
+  onConversationsChange,
+  translations,
+  activeConvId: propActiveConvId,
+  setActiveConvId: propSetActiveConvId,
+}: MessagesViewProps) {
+  const [internalActiveConvId, setInternalActiveConvId] = useState<string | null>(null);
+
+  const activeConvId = propActiveConvId !== undefined ? propActiveConvId : internalActiveConvId;
+  const setActiveConvId = propSetActiveConvId !== undefined ? propSetActiveConvId : setInternalActiveConvId;
+
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
@@ -18,9 +32,8 @@ export default function MessagesView({ lang, initialConversations, translations 
 
   const handleSelectConv = (id: string) => {
     setActiveConvId(id);
-    // Mark messages as read by resetting unreadCount
-    setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c))
+    onConversationsChange(
+      conversations.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c))
     );
   };
 
@@ -29,7 +42,7 @@ export default function MessagesView({ lang, initialConversations, translations 
 
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
-      senderId: 'user_1', // represents logged-in user Ahmad
+      senderId: 'user_1',
       text: chatInput,
       timestamp: new Date().toLocaleTimeString('en-US', {
         hour: 'numeric',
@@ -40,25 +53,22 @@ export default function MessagesView({ lang, initialConversations, translations 
     };
 
     const userTypedMessage = chatInput;
-
-    // Append to state
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id === activeConvId) {
-          return {
-            ...c,
-            lastMessage: userTypedMessage,
-            lastMessageTime: newMessage.timestamp,
-            messages: [...c.messages, newMessage],
-          };
-        }
-        return c;
-      })
-    );
-
+    const currentConversations = conversations;
+    const conversationsWithUserMsg = currentConversations.map((c) => {
+      if (c.id === activeConvId) {
+        return {
+          ...c,
+          lastMessage: userTypedMessage,
+          lastMessageTime: newMessage.timestamp,
+          messages: [...c.messages, newMessage],
+        };
+      }
+      return c;
+    });
+    
+    onConversationsChange(conversationsWithUserMsg);
     setChatInput('');
 
-    // Trigger simulated reply
     setIsTyping(true);
     setTimeout(() => {
       setIsTyping(false);
@@ -102,8 +112,8 @@ export default function MessagesView({ lang, initialConversations, translations 
         status: 'read',
       };
 
-      setConversations((prev) =>
-        prev.map((c) => {
+      onConversationsChange(
+        conversationsWithUserMsg.map((c) => {
           if (c.id === activeConvId) {
             return {
               ...c,
@@ -119,16 +129,17 @@ export default function MessagesView({ lang, initialConversations, translations 
   };
 
   const isRTL = lang === 'da' || lang === 'pa';
+  const totalUnread = conversations.reduce((acc, current) => acc + current.unreadCount, 0);
 
   return (
-    <div className="flex flex-col flex-grow text-zinc-100 select-none relative animate-fade-in">
+    <div className="flex flex-col flex-grow text-zinc-800 select-none relative animate-fade-in">
       {!activeConvId ? (
         /* Conversation inbox index row lists */
-        <div className="flex flex-col flex-grow p-4 pt-14 pb-28">
+        <div className="flex flex-col flex-grow p-4 pt-6 pb-20">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-2xl font-black text-orange-500 tracking-tight">{translations.messages}</h2>
-            <span className="text-xs text-orange-400 font-bold font-mono">
-              {conversations.reduce((acc, current) => acc + current.unreadCount, 0)} {lang === 'en' ? 'NEW' : 'پیام جدید'}
+            <h2 className="text-2xl font-black text-blue-600 tracking-tight">{translations.messages}</h2>
+            <span className="text-xs text-blue-600 font-bold">
+              {toLocalNumbers(String(totalUnread), lang)} {lang === 'en' ? 'NEW' : 'پیام جدید'}
             </span>
           </div>
 
@@ -137,38 +148,38 @@ export default function MessagesView({ lang, initialConversations, translations 
               <div
                 key={conv.id}
                 onClick={() => handleSelectConv(conv.id)}
-                className={`flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10 cursor-pointer hover:border-orange-500/30 transition-all duration-200 select-none ${
-                  conv.unreadCount > 0 ? 'bg-[#1a1a1c]/20 border-orange-500/25' : 'border-white/5'
+                className={`flex items-center gap-3 p-3.5 rounded-2xl bg-white border cursor-pointer hover:border-blue-500/30 transition-all duration-200 select-none ${
+                  conv.unreadCount > 0 ? 'bg-blue-600/5 border-blue-600/20' : 'border-zinc-200 shadow-sm'
                 }`}
                 style={{ direction: isRTL ? 'rtl' : 'ltr' }}
               >
                 {/* User Avatar Initials */}
                 <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#1b1b1b] to-zinc-900 border border-white/10 flex items-center justify-center text-orange-400 text-sm font-black">
+                  <div className="w-12 h-12 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-blue-600 text-sm font-black">
                     {conv.user.avatar}
                   </div>
                   {conv.user.isOnline && (
-                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border border-zinc-950 rounded-full"></span>
+                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border border-white rounded-full"></span>
                   )}
                 </div>
 
                 {/* Sender content and metadata */}
                 <div className="flex-grow min-w-0 flex flex-col gap-0.5">
                   <div className="flex items-baseline justify-between">
-                    <h4 className="font-extrabold text-orange-500 text-sm truncate">{conv.user.name}</h4>
-                    <span className="text-[10px] text-zinc-500 font-mono font-semibold">
-                      {conv.lastMessageTime}
+                    <h4 className="font-extrabold text-zinc-800 text-sm truncate">{conv.user.name}</h4>
+                    <span className="text-[10px] text-zinc-400 font-mono font-bold">
+                      {toLocalNumbers(conv.lastMessageTime, lang)}
                     </span>
                   </div>
-                  <p className="text-zinc-350 text-xs min-h-[1.25rem] truncate font-medium max-w-[260px]">
-                    {conv.lastMessage}
+                  <p className="text-zinc-500 text-xs min-h-[1.25rem] truncate font-semibold max-w-[260px]">
+                    {toLocalNumbers(conv.lastMessage, lang)}
                   </p>
 
                   {/* Context listing reference */}
                   {conv.listingContext && (
-                    <span className="text-[10px] text-zinc-500 flex items-center gap-1.5 mt-1">
-                      <span className="capitalize text-zinc-400 font-bold underline">
-                        💡 {conv.listingContext.title}
+                    <span className="text-[10px] text-zinc-400 flex items-center gap-1.5 mt-1 font-semibold">
+                      <span className="capitalize text-zinc-500 font-extrabold underline">
+                        💡 {toLocalNumbers(conv.listingContext.title, lang)}
                       </span>
                     </span>
                   )}
@@ -176,8 +187,8 @@ export default function MessagesView({ lang, initialConversations, translations 
 
                 {/* Unread numeric circular badge indicator */}
                 {conv.unreadCount > 0 && (
-                  <div className="w-5 h-5 rounded-full bg-orange-600 flex items-center justify-center text-[10px] font-black text-black flex-shrink-0 animate-pulse">
-                    {conv.unreadCount}
+                  <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0 animate-pulse">
+                    {toLocalNumbers(String(conv.unreadCount), lang)}
                   </div>
                 )}
               </div>
@@ -186,36 +197,36 @@ export default function MessagesView({ lang, initialConversations, translations 
         </div>
       ) : (
         /* Dynamic detailed full screen chatting frame */
-        <div className="flex flex-col flex-grow h-screen bg-zinc-950 relative">
+        <div className="flex flex-col flex-grow h-screen bg-zinc-50 relative">
           {/* Header toolbar */}
           <div
-            className="sticky top-0 bg-[#202020]/90 backdrop-blur-md pt-14 pb-3.5 px-4 border-b border-zinc-850 flex items-center gap-3 z-40 select-none"
+            className="sticky top-0 bg-white/95 backdrop-blur-md pt-6 pb-2.5 px-4 border-b border-zinc-200/80 flex items-center gap-3 z-40 select-none shadow-sm"
             style={{ direction: isRTL ? 'rtl' : 'ltr' }}
           >
             <button
               onClick={() => setActiveConvId(null)}
-              className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-805 cursor-pointer"
+              className="p-1 rounded-full text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 cursor-pointer"
             >
               <ArrowLeft className={`w-5 h-5 ${isRTL ? 'rotate-180' : ''}`} />
             </button>
 
             <div className="relative flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-zinc-800 border border-orange-500/50 flex items-center justify-center text-orange-400 text-xs font-black">
+              <div className="w-10 h-10 rounded-full bg-zinc-100 border border-blue-500/25 flex items-center justify-center text-blue-600 text-xs font-black">
                 {activeConv?.user.avatar}
               </div>
               {activeConv?.user.isOnline && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#202020] rounded-full"></span>
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border border-white rounded-full"></span>
               )}
             </div>
 
             <div className="flex-grow min-w-0 flex flex-col leading-none">
-              <h4 className="font-extrabold text-sm text-zinc-50">{activeConv?.user.name}</h4>
-              <span className="text-[10px] text-zinc-500 font-semibold mt-1">
+              <h4 className="font-extrabold text-sm text-zinc-800">{activeConv?.user.name}</h4>
+              <span className="text-[10px] text-zinc-400 font-semibold mt-1">
                 {isTyping
                   ? translations.typing
                   : activeConv?.user.isOnline
                     ? translations.online
-                    : `${translations.offline} (${activeConv?.user.lastSeen || '1d ago'})`}
+                    : `${translations.offline} (${toLocalNumbers(activeConv?.user.lastSeen || '1d ago', lang)})`}
               </span>
             </div>
           </div>
@@ -223,7 +234,7 @@ export default function MessagesView({ lang, initialConversations, translations 
           {/* Context listing sticky item info bar */}
           {activeConv?.listingContext && (
             <div
-              className="px-4 py-2.5 bg-[#252525] border-b border-zinc-800 flex items-center justify-between select-none"
+              className="px-4 py-2.5 bg-zinc-100 border-b border-zinc-200/80 flex items-center justify-between select-none"
               style={{ direction: isRTL ? 'rtl' : 'ltr' }}
             >
               <div className="flex items-center gap-2.5">
@@ -234,9 +245,9 @@ export default function MessagesView({ lang, initialConversations, translations 
                   referrerPolicy="no-referrer"
                 />
                 <div className="flex flex-col leading-none">
-                  <span className="text-xs text-zinc-200 font-black">{activeConv.listingContext.title}</span>
-                  <span className="text-[11px] text-orange-500 font-bold font-mono mt-1">
-                    {activeConv.listingContext.price}
+                  <span className="text-xs text-zinc-700 font-black">{toLocalNumbers(activeConv.listingContext.title, lang)}</span>
+                  <span className="text-[11px] text-blue-600 font-bold mt-1">
+                    {toLocalNumbers(activeConv.listingContext.price, lang)}
                   </span>
                 </div>
               </div>
@@ -244,7 +255,7 @@ export default function MessagesView({ lang, initialConversations, translations 
           )}
 
           {/* Chat scrollbox listings */}
-          <div className="flex-grow overflow-y-auto px-4 py-4 pb-28 flex flex-col gap-3.5 scrollbar-none">
+          <div className="flex-grow overflow-y-auto px-4 py-4 pb-20 flex flex-col gap-3.5 scrollbar-none">
             {activeConv?.messages.map((m) => {
               const isMe = m.senderId === 'user_1';
               return (
@@ -261,17 +272,17 @@ export default function MessagesView({ lang, initialConversations, translations 
                   }`}
                 >
                   <div
-                    className={`px-4 py-3 rounded-2xl text-xs font-bold leading-relaxed shadow ${
+                    className={`px-4 py-3 rounded-2xl text-xs font-bold leading-relaxed shadow-sm ${
                       isMe
-                        ? 'bg-orange-600 text-white rounded-br-none'
-                        : 'bg-[#151515] text-zinc-200 border border-white/5 rounded-bl-none'
+                        ? 'bg-blue-600 text-white rounded-br-none'
+                        : 'bg-white text-zinc-805 border border-zinc-200 rounded-bl-none'
                     }`}
                   >
-                    {m.text}
+                    {toLocalNumbers(m.text, lang)}
                   </div>
-                  <span className="text-[9px] text-zinc-500 font-mono mt-1 font-semibold flex items-center gap-1 leading-none">
-                    {m.timestamp}
-                    {isMe && <CheckCheck className="w-3 h-3 text-emerald-400" />}
+                  <span className="text-[9px] text-zinc-400 font-mono mt-1 font-semibold flex items-center gap-1 leading-none">
+                    {toLocalNumbers(m.timestamp, lang)}
+                    {isMe && <CheckCheck className="w-3 h-3 text-emerald-500" />}
                   </span>
                 </div>
               );
@@ -279,17 +290,17 @@ export default function MessagesView({ lang, initialConversations, translations 
 
             {/* Simulated Dot typing indicator placeholder */}
             {isTyping && (
-              <div className={`flex items-center gap-1.5 p-3 rounded-2xl bg-[#151515] border border-white/5 max-w-[70px] ${isRTL ? 'self-end' : 'self-start'}`}>
-                <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" />
-                <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+              <div className={`flex items-center gap-1.5 p-3 rounded-2xl bg-white border border-zinc-200 max-w-[70px] ${isRTL ? 'self-end' : 'self-start'} shadow-sm`}>
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" />
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
               </div>
             )}
           </div>
 
           {/* Bottom input typing console tray */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-zinc-950 border-t border-zinc-900 flex items-center gap-2">
-            <button className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-805 text-zinc-450 hover:text-white cursor-pointer transition-colors active:scale-90 flex-shrink-0">
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-zinc-200/80 flex items-center gap-2">
+            <button className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-500 hover:text-zinc-850 cursor-pointer transition-colors active:scale-90 flex-shrink-0 shadow-sm">
               <Paperclip className="w-4.5 h-4.5" />
             </button>
 
@@ -298,7 +309,7 @@ export default function MessagesView({ lang, initialConversations, translations 
                 e.preventDefault();
                 handleSendMessage();
               }}
-              className="flex-grow flex items-center bg-[#242424] border border-[#333] hover:border-zinc-750 p-1.5 rounded-2xl"
+              className="flex-grow flex items-center bg-zinc-100 border border-zinc-200 hover:border-zinc-300 p-1.5 rounded-2xl"
               style={{ direction: isRTL ? 'rtl' : 'ltr' }}
             >
               <input
@@ -306,19 +317,19 @@ export default function MessagesView({ lang, initialConversations, translations 
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder={lang === 'en' ? 'Type message...' : 'نوشتن پیام...'}
-                className="flex-grow bg-transparent border-none text-xs outline-none text-zinc-200 px-2 font-semibold"
+                className="flex-grow bg-transparent border-none text-xs outline-none text-zinc-800 px-2 font-bold"
               />
 
               <button
                 type="submit"
-                className="w-8 h-8 rounded-xl bg-orange-500 hover:bg-orange-400 flex items-center justify-center text-black active:scale-90 transition-transform cursor-pointer flex-shrink-0"
+                className="w-8 h-8 rounded-xl bg-blue-600 hover:bg-blue-550 flex items-center justify-center text-white active:scale-90 transition-transform cursor-pointer flex-shrink-0"
               >
                 <Send className="w-4 h-4" />
               </button>
             </form>
 
-            <button className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-805 text-zinc-455 hover:text-white cursor-pointer active:scale-95 flex-shrink-0">
-              <Mic className="w-4.5 h-4.5 text-zinc-400" />
+            <button className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-500 hover:text-zinc-850 cursor-pointer active:scale-95 flex-shrink-0 shadow-sm">
+              <Mic className="w-4.5 h-4.5 text-zinc-500" />
             </button>
           </div>
         </div>
