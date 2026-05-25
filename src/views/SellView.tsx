@@ -12,6 +12,7 @@ interface SellViewProps {
   onAddListing: (newListing: Partial<Listing>) => void;
   translations: any;
   currentUser: User | null;
+  firebaseUser?: any | null;
   onNavChange: (tab: string) => void;
 }
 
@@ -49,6 +50,7 @@ export default function SellView({
   onAddListing,
   translations,
   currentUser,
+  firebaseUser,
   onNavChange,
 }: SellViewProps) {
   // 4 steps state management
@@ -134,6 +136,7 @@ export default function SellView({
   }, [category, subcategory, lang]);
 
   const [isUploading, setIsUploading] = useState(false);
+  const [tempListingId] = useState<string>(() => `ad_${Date.now()}_${Math.random().toString(36).slice(2,8)}`);
 
   // Read images, convert to base64 with downscaling, and upload to Firebase Storage
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,9 +155,15 @@ export default function SellView({
         // Compress and upload/fallback in the background
         const compressedBase64 = await compressImage(file, 800, 800, 0.7);
         let finalUrl = compressedBase64;
-        
+
         if (compressedBase64) {
-          finalUrl = await uploadListingImage(compressedBase64);
+          // Upload under /listings/{listingId}/{filename} when possible
+          try {
+            finalUrl = await uploadListingImage(compressedBase64, tempListingId, file.name || undefined);
+          } catch (err) {
+            console.warn('Upload failed, keeping compressed data URL as fallback', err);
+            finalUrl = compressedBase64;
+          }
         }
 
         // Swap out the local temp URL with the persistent one (Firebase Storage URL or base64)
@@ -181,6 +190,13 @@ export default function SellView({
   };
 
   const handlePostAd = () => {
+    // Prevent unauthenticated users (no firebase session) from posting
+    if (!firebaseUser) {
+      setValidationError('Please sign in to post a listing');
+      // redirect to profile tab after showing message
+      onNavChange('profile');
+      return;
+    }
     if (!title || !category || !subcategory || !price || !province || !district || !phone) {
       setValidationError(
         lang === 'en'
@@ -235,6 +251,7 @@ export default function SellView({
     const finalLocationPashto = district && town ? `${province}، ${district}، ${town}` : district ? `${province}، ${district}` : `${province}، مرکز`;
 
     const newAd: Partial<Listing> = {
+      id: tempListingId,
       title,
       titleDari: title,
       titlePashto: title,

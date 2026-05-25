@@ -21,7 +21,11 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
  * Upload compressed image to Firebase Storage, returning the download URL.
  * Falls back to base64 string if Firebase Storage fails or is not enabled.
  */
-export async function uploadListingImage(base64DataUrl: string): Promise<string> {
+export async function uploadListingImage(
+  base64DataUrl: string,
+  listingId?: string,
+  filenameHint?: string
+): Promise<string> {
   try {
     const arr = base64DataUrl.split(',');
     if (arr.length < 2) return base64DataUrl;
@@ -34,8 +38,10 @@ export async function uploadListingImage(base64DataUrl: string): Promise<string>
     }
     const blob = new Blob([u8arr], { type: mime });
 
-    const filename = `listing_images/${Date.now()}_${Math.random().toString(36).substring(2, 10)}.jpg`;
-    const storageRef = ref(storage, filename);
+    // Determine filename and storage path. If a listingId is provided, place under /listings/{listingId}/
+    const safeName = (filenameHint && filenameHint.replace(/[^a-z0-9._-]/gi, '_')) || `${Date.now()}_${Math.random().toString(36).substring(2, 10)}.jpg`;
+    const path = listingId ? `listings/${listingId}/${safeName}` : `listing_images/${safeName}`;
+    const storageRef = ref(storage, path);
     const snapshot = await uploadBytes(storageRef, blob, { contentType: mime });
     return await getDownloadURL(snapshot.ref);
   } catch (error) {
@@ -129,6 +135,7 @@ export async function createFirestoreListing(listing: Listing): Promise<void> {
       views: listing.views || 0,
       condition: listing.condition || 'new',
       createdAt: serverTimestamp(),
+      isSold: listing.isSold || false,
     };
 
     if (listing.subcategory) docData.subcategory = listing.subcategory;
@@ -201,6 +208,7 @@ export function subscribeToListings(onUpdate: (listings: Listing[]) => void, onE
             phone: d.seller?.phone || '',
           },
           isVerified: d.isVerified || false,
+          isSold: d.isSold || false,
           views: d.views || 0,
           condition: d.condition || 'new',
           subcategory: d.subcategory,
